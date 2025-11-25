@@ -5,7 +5,6 @@ import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3 } f
 import Link from 'next/link';
 import { getAllTemplates, getDefaultTemplateId } from '@/lib/templates';
 import MonthYearPicker from '@/components/MonthYearPicker';
-import ATSAnalysisModal from '@/components/ATSAnalysisModal';
 
 type SectionType = 
   | 'personal-info'
@@ -120,7 +119,6 @@ export default function CreateResume() {
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
-  const [showATSAnalysis, setShowATSAnalysis] = useState(false);
 
   // Force preview re-render when sections change
   useEffect(() => {
@@ -297,35 +295,37 @@ export default function CreateResume() {
 
   // Editor View
   return (
-    <div className="h-screen flex flex-col bg-[#0a0e27]" data-theme="atsbuilder">
+    <div className="h-screen flex flex-col animated-gradient aurora" data-theme="atsbuilder">
       {/* Header */}
-      <header className="bg-gradient-to-r from-[#0f1629] to-[#1a1f3a] border-b border-brand-cyan/20 px-6 py-4 flex items-center justify-between shadow-lg">
+      <header className="glass border-b neon-border px-6 py-4 flex items-center justify-between shadow-2xl backdrop-blur-xl">
         <div className="flex items-center space-x-6">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-brand-gray hover:text-brand-cyan transition-all duration-200 group"
+            className="flex items-center space-x-2 text-brand-gray-text hover:text-brand-purple-light transition-all duration-300 group"
           >
-            <span className="text-lg group-hover:transform group-hover:-translate-x-1 transition-transform">←</span>
-            <span className="font-medium">Back to Home</span>
+            <span className="text-xl group-hover:transform group-hover:-translate-x-1 transition-transform">←</span>
+            <span className="font-semibold">Back to Home</span>
           </Link>
-          <div className="h-6 w-px bg-gray-700"></div>
+          <div className="h-8 w-px bg-gradient-to-b from-transparent via-brand-purple/50 to-transparent"></div>
           <div className="flex items-center space-x-3">
-            <FileText className="w-6 h-6 text-brand-cyan" />
-            <h1 className="text-xl font-bold text-brand-white tracking-wide">ResuCraft</h1>
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-2xl font-black gradient-text tracking-wide">ResuCraft</h1>
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setShowATSAnalysis(true)}
-            className="btn bg-purple-600 hover:bg-purple-700 text-white border-0 font-bold px-6 py-3 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all duration-200 hover:scale-105"
+          <Link
+            href="/review"
+            className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-green via-brand-cyan to-brand-green-light hover:scale-105 text-white border-2 border-brand-green/30 glow-green"
           >
-            <BarChart3 className="w-5 h-5 mr-2" />
+            <BarChart3 className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
             Analyze ATS Score
-          </button>
+          </Link>
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="btn bg-brand-cyan hover:bg-brand-cyan/90 text-brand-black border-0 font-bold px-6 py-3 rounded-lg shadow-lg hover:shadow-brand-cyan/50 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-brand-pink/30 glow-pink"
           >
             {generating ? (
               <>
@@ -334,7 +334,7 @@ export default function CreateResume() {
               </>
             ) : (
               <>
-                <Download className="w-5 h-5 mr-2" />
+                <Download className="w-5 h-5 mr-2 group-hover:translate-y-0.5 transition-transform" />
                 Download PDF
               </>
             )}
@@ -344,10 +344,16 @@ export default function CreateResume() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Sections */}
-        <div className="w-80 bg-[#0f1629] border-r border-gray-800 flex flex-col">
-          <div className="p-6 border-b border-gray-800">
-            <h2 className="text-lg font-semibold text-brand-white mb-1">Resume Sections</h2>
-            <p className="text-sm text-brand-gray">Click any section to edit</p>
+        <div className="w-80 glass border-r neon-border flex flex-col custom-scrollbar backdrop-blur-xl">
+          <div className="p-6 border-b border-brand-purple/20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple/10 rounded-full blur-2xl"></div>
+            <div className="relative">
+              <h2 className="text-xl font-black mb-2 flex items-center">
+                <span className="w-1 h-6 bg-gradient-to-b from-brand-cyan via-brand-purple to-brand-pink rounded-full mr-3 shadow-lg"></span>
+                <span className="gradient-text-purple">Resume Sections</span>
+              </h2>
+              <p className="text-sm text-brand-gray-text font-medium">Click any section to edit</p>
+            </div>
                 </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -355,19 +361,23 @@ export default function CreateResume() {
               <div
                 key={section.id}
                 onClick={() => setEditingSection(section.id)}
-                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+                className={`group flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
                   editingSection === section.id
-                    ? 'bg-brand-cyan/10 border border-brand-cyan'
-                    : 'bg-gray-800/50 border border-transparent hover:bg-gray-800'
+                    ? 'bg-gradient-to-r from-brand-purple/20 via-brand-pink/20 to-brand-cyan/20 border-2 neon-border shadow-2xl scale-[1.03]'
+                    : 'bg-brand-dark-card/50 border-2 border-brand-purple/10 hover:border-brand-purple/30 hover:bg-brand-dark-card/70 hover:scale-[1.02] backdrop-blur-sm'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    section.id === 'personal-info' ? 'bg-brand-cyan/20' : 'bg-gray-700'
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    section.id === 'personal-info' 
+                      ? 'bg-gradient-to-br from-brand-pink via-brand-purple to-brand-pink-dark shadow-xl glow-pink' 
+                      : editingSection === section.id
+                        ? 'bg-gradient-to-br from-brand-cyan via-brand-green to-brand-cyan-dark shadow-xl glow-cyan'
+                        : 'bg-gradient-to-br from-brand-dark-surface to-brand-dark-bg border-2 border-brand-purple/20'
                   }`}>
                     {section.id === 'personal-info' ? '👤' : '📄'}
                 </div>
-                  <span className="text-brand-white font-medium">{section.title}</span>
+                  <span className="text-brand-white font-semibold group-hover:text-brand-cyan transition-colors">{section.title}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   {section.id === 'personal-info' && (
@@ -376,7 +386,7 @@ export default function CreateResume() {
                         e.stopPropagation();
                         setEditingSection(section.id);
                       }}
-                      className="text-brand-cyan hover:text-brand-cyan/80 p-1"
+                      className="text-brand-cyan hover:text-brand-cyan-light p-2 rounded-lg hover:bg-brand-cyan/10 transition-all hover:scale-110"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -387,7 +397,7 @@ export default function CreateResume() {
                         e.stopPropagation();
                         handleRemoveSection(section.id);
                       }}
-                      className="text-red-400 hover:text-red-300 p-1"
+                      className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/20 transition-all hover:scale-110"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -397,28 +407,38 @@ export default function CreateResume() {
             ))}
           </div>
 
-          <div className="p-4 border-t border-gray-800 space-y-3">
+          <div className="p-4 border-t border-brand-purple/20 space-y-3 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-t from-brand-dark-bg/80 to-transparent"></div>
             <button
               onClick={() => setShowAddSection(true)}
-              className="w-full flex items-center justify-center space-x-2 p-3 rounded-lg bg-gray-800/50 border border-dashed border-gray-600 hover:border-brand-cyan hover:bg-gray-800 text-brand-white transition-all"
+              className="relative group w-full flex items-center justify-center space-x-2 p-4 rounded-2xl bg-gradient-to-r from-brand-purple/20 via-brand-pink/20 to-brand-purple/20 border-2 border-dashed border-brand-purple/50 hover:border-brand-pink hover:shadow-xl glow-purple text-brand-white transition-all duration-300 hover:scale-[1.03] font-bold backdrop-blur-sm"
             >
-              <Plus className="w-5 h-5" />
-              <span>Add Section</span>
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300 text-brand-pink-light" />
+              <span className="gradient-text-purple">Add Section</span>
             </button>
-            <button className="w-full flex items-center justify-center space-x-2 p-3 rounded-lg bg-gray-800/50 border border-gray-600 hover:border-brand-cyan hover:bg-gray-800 text-brand-white transition-all">
-              <Upload className="w-5 h-5" />
-              <span>Import from PDF</span>
+            <button className="relative group w-full flex items-center justify-center space-x-2 p-4 rounded-2xl bg-gradient-to-r from-brand-cyan/10 to-brand-green/10 border-2 border-brand-cyan/30 hover:border-brand-cyan hover:shadow-xl glow-cyan text-brand-white transition-all duration-300 hover:scale-[1.03] font-bold backdrop-blur-sm">
+              <Upload className="w-6 h-6 group-hover:translate-y-0.5 transition-transform duration-300 text-brand-cyan-light" />
+              <span className="gradient-text-green">Import from PDF</span>
             </button>
           </div>
         </div>
 
         {/* Main Content - Full Preview */}
-        <div className="flex-1 flex items-start justify-center overflow-y-auto p-8 bg-[#0a0e27]">
-          <div className="w-full max-w-[850px]">
-            <div className="mb-4 text-center">
-              <p className="text-sm text-brand-gray">Preview is approximate. Download PDF for exact layout.</p>
+        <div className="flex-1 flex items-start justify-center overflow-y-auto p-8 relative custom-scrollbar">
+          {/* Background effects */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-purple/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-cyan/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          </div>
+          
+          <div className="w-full max-w-[850px] relative z-10">
+            <div className="mb-8 text-center">
+              <div className="inline-flex items-center space-x-3 px-6 py-3 rounded-2xl glass border neon-border backdrop-blur-xl">
+                <span className="w-3 h-3 bg-gradient-to-r from-brand-green to-brand-cyan rounded-full animate-pulse shadow-lg glow-green"></span>
+                <p className="text-sm font-bold gradient-text-green">Preview Mode • PDF will have exact layout</p>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow-2xl p-16 min-h-[1100px]" style={{ fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif' }}>
+            <div className="bg-white rounded-3xl shadow-2xl glow-purple p-16 min-h-[1100px] border-4 neon-border" style={{ fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif' }}>
               <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} />
             </div>
           </div>
@@ -431,23 +451,28 @@ export default function CreateResume() {
         if (!currentSection) return null;
         
         return (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0f1629] rounded-2xl max-w-4xl w-full max-h-[90vh] border border-gray-700 flex flex-col">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 p-4">
+            <div className="relative glass rounded-4xl max-w-4xl w-full max-h-[90vh] border-2 neon-border shadow-2xl flex flex-col overflow-hidden">
+              {/* Decorative orbs */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-cyan/20 rounded-full blur-3xl pointer-events-none"></div>
+              
               {/* Header - Fixed */}
-              <div className="p-6 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
-                <h2 className="text-2xl font-bold text-brand-white">
-                  {currentSection.title}
+              <div className="relative p-6 border-b border-brand-purple/30 flex items-center justify-between flex-shrink-0 backdrop-blur-xl">
+                <h2 className="text-3xl font-black flex items-center">
+                  <span className="w-1.5 h-10 bg-gradient-to-b from-brand-cyan via-brand-purple via-brand-pink to-brand-green rounded-full mr-4 shadow-lg animate-pulse"></span>
+                  <span className="gradient-text">{currentSection.title}</span>
                 </h2>
                 <button
                   onClick={() => setEditingSection(null)}
-                  className="text-brand-gray hover:text-brand-white p-2 rounded-lg hover:bg-gray-800 transition-all text-xl"
+                  className="text-brand-gray-text hover:text-brand-white p-3 rounded-xl hover:bg-brand-dark-surface border border-transparent hover:border-brand-cyan/30 transition-all text-2xl hover:rotate-90 duration-300"
                 >
                   ✕
                 </button>
           </div>
 
               {/* Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                 <SectionEditor
                   section={currentSection}
                   onUpdate={(content) => handleUpdateSection(editingSection, content)}
@@ -455,18 +480,18 @@ export default function CreateResume() {
               </div>
               
               {/* Footer - Fixed */}
-              <div className="p-6 border-t border-gray-700 flex justify-end space-x-3 flex-shrink-0 bg-[#0f1629]">
+              <div className="relative p-6 border-t border-brand-purple/30 flex justify-end space-x-4 flex-shrink-0 backdrop-blur-xl">
                 <button
                   onClick={() => setEditingSection(null)}
-                  className="btn bg-gray-700 hover:bg-gray-600 text-brand-white border-0 font-semibold px-8"
+                  className="px-8 py-3 rounded-2xl font-bold bg-gradient-to-r from-brand-dark-surface to-brand-dark-bg border-2 border-brand-purple/30 hover:border-brand-purple/60 text-brand-white transition-all hover:scale-105 backdrop-blur-sm"
                 >
                   Close
                 </button>
                 <button
                   onClick={() => setEditingSection(null)}
-                  className="btn bg-brand-cyan hover:bg-brand-cyan/90 text-brand-black border-0 font-semibold px-8"
+                  className="px-8 py-3 rounded-2xl font-bold bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:shadow-2xl glow-pink text-white transition-all hover:scale-105 border-2 border-brand-pink/30"
                 >
-                  Save Changes
+                  ✓ Save Changes
                 </button>
               </div>
             </div>
@@ -476,47 +501,62 @@ export default function CreateResume() {
 
       {/* Add Section Modal */}
       {showAddSection && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0f1629] rounded-2xl max-w-4xl w-full max-h-[85vh] border border-gray-700 flex flex-col">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 p-4">
+          <div className="relative glass rounded-4xl max-w-5xl w-full max-h-[85vh] border-2 neon-border shadow-2xl flex flex-col overflow-hidden">
+            {/* Decorative orbs */}
+            <div className="absolute top-0 left-0 w-96 h-96 bg-brand-green/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-pink/20 rounded-full blur-3xl pointer-events-none"></div>
+            
             {/* Header - Fixed */}
-            <div className="p-6 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-2xl font-bold text-brand-white">Add Content</h2>
+            <div className="relative p-6 border-b border-brand-purple/30 flex items-center justify-between flex-shrink-0 backdrop-blur-xl">
+              <h2 className="text-3xl font-black flex items-center">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-purple via-brand-pink to-brand-cyan flex items-center justify-center mr-4 shadow-xl glow-pink">
+                  <Plus className="w-7 h-7 text-white" />
+                </div>
+                <span className="gradient-text">Add Content</span>
+              </h2>
               <button
                 onClick={() => setShowAddSection(false)}
-                className="text-brand-gray hover:text-brand-white p-2 rounded-lg hover:bg-gray-800 transition-all text-xl"
+                className="text-brand-gray-text hover:text-brand-white p-3 rounded-xl hover:bg-brand-dark-surface border border-transparent hover:border-brand-cyan/30 transition-all text-2xl hover:rotate-90 duration-300"
               >
                 ✕
               </button>
           </div>
 
             {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {SECTION_TEMPLATES.map((template) => (
-                  <button
-                    key={template.type}
-                    onClick={() => handleAddSection(template.type)}
-                    className="p-6 rounded-xl bg-gray-800/50 border border-gray-700 hover:border-brand-cyan hover:bg-gray-800 text-left transition-all group"
-                  >
-                    <div className="text-3xl mb-3">{template.icon}</div>
-                    <h3 className="text-lg font-semibold text-brand-white mb-2 group-hover:text-brand-cyan transition-colors">
-                      {template.title}
-                    </h3>
-                    <p className="text-sm text-brand-gray">{template.description}</p>
-                  </button>
-                ))}
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {SECTION_TEMPLATES.map((template, index) => {
+                  const colors = [
+                    { from: 'brand-purple', to: 'brand-pink', glow: 'glow-purple' },
+                    { from: 'brand-cyan', to: 'brand-green', glow: 'glow-cyan' },
+                    { from: 'brand-pink', to: 'brand-purple', glow: 'glow-pink' },
+                    { from: 'brand-green', to: 'brand-cyan', glow: 'glow-green' },
+                  ];
+                  const colorSet = colors[index % colors.length];
+                  
+                  return (
+                    <button
+                      key={template.type}
+                      onClick={() => handleAddSection(template.type)}
+                      className={`group relative p-7 rounded-3xl glass border-2 border-${colorSet.from}/20 hover:border-${colorSet.from}/60 hover:shadow-2xl ${colorSet.glow} text-left transition-all duration-300 hover:scale-[1.05] backdrop-blur-sm overflow-hidden`}
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br from-${colorSet.from}/5 to-${colorSet.to}/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl`}></div>
+                      <div className="relative">
+                        <div className="text-5xl mb-5 group-hover:scale-125 group-hover:rotate-6 transition-all duration-300">{template.icon}</div>
+                        <h3 className={`text-xl font-black text-brand-white mb-3 group-hover:bg-gradient-to-r group-hover:from-${colorSet.from} group-hover:to-${colorSet.to} group-hover:bg-clip-text group-hover:text-transparent transition-all`}>
+                          {template.title}
+                        </h3>
+                        <p className="text-sm text-brand-gray-text leading-relaxed">{template.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* ATS Analysis Modal */}
-      <ATSAnalysisModal
-        isOpen={showATSAnalysis}
-        onClose={() => setShowATSAnalysis(false)}
-        sections={sections}
-      />
                   </div>
   );
 }
@@ -528,62 +568,68 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-brand-white mb-2">Full Name *</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">
+              <span className="w-1 h-4 bg-gradient-to-b from-brand-cyan to-brand-purple rounded-full mr-2"></span>
+              Full Name *
+            </label>
                   <input
                     type="text"
               value={section.content.fullName || ''}
               onChange={(e) => onUpdate({ ...section.content, fullName: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
               placeholder="John Doe"
                   />
                 </div>
           <div>
-            <label className="block text-sm font-medium text-brand-white mb-2">Professional Title *</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">
+              <span className="w-1 h-4 bg-gradient-to-b from-brand-cyan to-brand-purple rounded-full mr-2"></span>
+              Professional Title *
+            </label>
                   <input
                     type="text"
               value={section.content.title || ''}
               onChange={(e) => onUpdate({ ...section.content, title: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
               placeholder="Software Engineer"
                   />
                 </div>
           <div>
-            <label className="block text-sm font-medium text-brand-white mb-2">Email</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Email</label>
                   <input
                     type="email"
               value={section.content.email || ''}
               onChange={(e) => onUpdate({ ...section.content, email: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
               placeholder="john@example.com"
                   />
                 </div>
           <div>
-            <label className="block text-sm font-medium text-brand-white mb-2">Phone</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Phone</label>
                       <input
               type="tel"
               value={section.content.phone || ''}
               onChange={(e) => onUpdate({ ...section.content, phone: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
               placeholder="+1 (555) 123-4567"
                       />
                     </div>
           <div>
-            <label className="block text-sm font-medium text-brand-white mb-2">Location</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Location</label>
                   <input
                     type="text"
               value={section.content.location || ''}
               onChange={(e) => onUpdate({ ...section.content, location: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
               placeholder="San Francisco, CA"
                   />
                 </div>
           <div>
-            <label className="block text-sm font-medium text-brand-white mb-2">LinkedIn</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">LinkedIn</label>
             <input
               type="url"
               value={section.content.linkedin || ''}
               onChange={(e) => onUpdate({ ...section.content, linkedin: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
               placeholder="linkedin.com/in/johndoe"
                 />
               </div>
@@ -600,7 +646,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
             value={section.content.text || ''}
             onChange={(e) => onUpdate({ text: e.target.value })}
             rows={8}
-            className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan resize-none"
+            className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all resize-none"
             placeholder="Write a brief overview of your professional background and key strengths..."
           />
           <p className="text-gray-400 text-sm mt-2">
@@ -734,42 +780,42 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Company *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Company *</label>
                 <input
                   type="text"
                       value={exp.company || ''}
                       onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="RESUME WORDED CO."
                 />
               </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Location *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Location *</label>
                     <input
                       type="text"
                       value={exp.location || ''}
                       onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="New York, NY"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Role/Title *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Role/Title *</label>
                     <input
                       type="text"
                       value={exp.role || ''}
                       onChange={(e) => updateExperience(exp.id, 'role', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Product Manager"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Additional Role (Optional)</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Additional Role (Optional)</label>
                     <input
                       type="text"
                       value={exp.additionalRole || ''}
                       onChange={(e) => updateExperience(exp.id, 'additionalRole', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Lead Business Analyst"
                     />
                   </div>
@@ -818,7 +864,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
                               value={bullet.text || ''}
                               onChange={(e) => updateBullet(exp.id, bullet.id, e.target.value)}
                               rows={3}
-                              className="flex-1 px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan resize-y"
+                              className="flex-1 px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all resize-y"
                               placeholder="Describe your achievement or responsibility..."
                             />
                             {exp.bullets.length > 1 && (
@@ -929,46 +975,46 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Project Name *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Project Name *</label>
                       <input
                         type="text"
                       value={proj.name || ''}
                       onChange={(e) => updateProject(proj.id, 'name', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="E-Commerce Platform"
                       />
                     </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Description</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Description</label>
                     <textarea
                       value={proj.description || ''}
                       onChange={(e) => updateProject(proj.id, 'description', e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan resize-none"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all resize-none"
                       placeholder="Developed a full-stack e-commerce platform with payment integration..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Technologies/Tools *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Technologies/Tools *</label>
                       <input
                         type="text"
                       value={proj.technologies || ''}
                       onChange={(e) => updateProject(proj.id, 'technologies', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="React, Redux, Express.js, MongoDB, OAuth, Nodemailer, Redis, Cloudinary"
                     />
                     <p className="text-gray-400 text-xs mt-1">Separate multiple technologies with commas</p>
                     </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Project Link (Optional)</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Project Link (Optional)</label>
                     <input
                       type="url"
                       value={proj.link || ''}
                       onChange={(e) => updateProject(proj.id, 'link', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="https://github.com/username/project"
                     />
                   </div>
@@ -1040,32 +1086,32 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-brand-white mb-2">Institution/University *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Institution/University *</label>
                       <input
                         type="text"
                       value={edu.institution || ''}
                       onChange={(e) => updateEducation(edu.id, 'institution', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Harvard University"
                       />
                     </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Degree *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Degree *</label>
                       <input
                         type="text"
                       value={edu.degree || ''}
                       onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Bachelor of Science"
                       />
                     </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Field of Study</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Field of Study</label>
                       <input
                         type="text"
                       value={edu.field || ''}
                       onChange={(e) => updateEducation(edu.id, 'field', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Computer Science"
                       />
                   </div>
@@ -1091,22 +1137,22 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
                     </div>
                     </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">GPA (Optional)</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">GPA (Optional)</label>
                     <input
                       type="text"
                       value={edu.gpa || ''}
                       onChange={(e) => updateEducation(edu.id, 'gpa', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="3.8/4.0"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Location (Optional)</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Location (Optional)</label>
                     <input
                       type="text"
                       value={edu.location || ''}
                       onChange={(e) => updateEducation(edu.id, 'location', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Cambridge, MA"
                     />
                   </div>
@@ -1177,46 +1223,46 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-brand-white mb-2">
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">
                       {section.type === 'certifications' ? 'Certification' : 'Award'} Title *
                 </label>
                     <input
                       type="text"
                       value={cert.title || ''}
                       onChange={(e) => updateCertification(cert.id, 'title', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder={section.type === 'certifications' ? 'AWS Certified Solutions Architect' : 'Employee of the Year'}
                 />
               </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">
                       {section.type === 'certifications' ? 'Issuing Organization' : 'Awarded By'} *
                     </label>
                     <input
                       type="text"
                       value={cert.issuer || ''}
                       onChange={(e) => updateCertification(cert.id, 'issuer', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder={section.type === 'certifications' ? 'Amazon Web Services' : 'ABC Corporation'}
                     />
             </div>
                   <div>
-                    <label className="block text-sm font-medium text-brand-white mb-2">Date *</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Date *</label>
                     <input
                       type="text"
                       value={cert.date || ''}
                       onChange={(e) => updateCertification(cert.id, 'date', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="August 2023"
                     />
           </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-brand-white mb-2">Description (Optional)</label>
+                    <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Description (Optional)</label>
                 <textarea
                       value={cert.description || ''}
                       onChange={(e) => updateCertification(cert.id, 'description', e.target.value)}
                       rows={2}
-                      className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan resize-none"
+                      className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all resize-none"
                       placeholder="Brief description or achievement details..."
                 />
               </div>
@@ -1302,24 +1348,24 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
                   <button
                     onClick={() => removeCategory(cat.id)}
                     className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-400/10 transition-all"
-                  >
+            >
                     <Trash2 className="w-4 h-4" />
                   </button>
           </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-brand-white mb-2">Category Name *</label>
+                  <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Category Name *</label>
                   <input
                     type="text"
                     value={cat.name || ''}
                     onChange={(e) => updateCategoryName(cat.id, e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                    className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                     placeholder="Technical Skills"
                 />
               </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-brand-white mb-2">Keywords/Skills *</label>
+                  <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">Keywords/Skills *</label>
                   
                   {/* Tag Display */}
                   {cat.keywords && cat.keywords.length > 0 && (
@@ -1348,7 +1394,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
                       value={keywordInput[cat.id] || ''}
                       onChange={(e) => setKeywordInput({ ...keywordInput, [cat.id]: e.target.value })}
                       onKeyPress={(e) => handleKeywordKeyPress(e, cat.id)}
-                      className="flex-1 px-4 py-3 bg-gray-800 text-brand-white border border-gray-600 rounded-lg focus:outline-none focus:border-brand-cyan"
+                      className="flex-1 px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Type a skill and press Enter or click Add"
                     />
             <button

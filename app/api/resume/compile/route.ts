@@ -11,6 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Resume ID required' }, { status: 400 });
     }
 
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
+
     const { data: resume, error: fetchError } = await supabaseAdmin
       .from('resume_versions')
       .select('*')

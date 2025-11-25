@@ -24,6 +24,12 @@ export default function ResumePage() {
 
   async function loadResume() {
     try {
+      if (!supabase) {
+        console.error('Supabase not configured');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('resume_versions')
         .select('*')

@@ -1,12 +1,27 @@
 import OpenAI from 'openai';
 
 const openaiKey = process.env.OPENAI_API_KEY || '';
-const isOpenAIConfigured = openaiKey && openaiKey !== 'placeholder';
 
+/**
+ * Validates if OpenAI API key is properly configured
+ * Checks for presence and that it starts with 'sk-' (OpenAI key format)
+ */
+const isOpenAIConfigured = 
+  openaiKey.length > 0 && 
+  openaiKey.startsWith('sk-');
+
+/**
+ * OpenAI client for generating embeddings
+ * Returns null if API key is not properly configured
+ */
 const openai = isOpenAIConfigured ? new OpenAI({
   apiKey: openaiKey,
 }) : null;
 
+/**
+ * Flag indicating whether OpenAI is available
+ * Use this to conditionally enable features that depend on OpenAI embeddings
+ */
 export const hasOpenAI = !!openai;
 
 /**

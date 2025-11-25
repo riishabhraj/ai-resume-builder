@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLatexTemplate, populateLatexTemplate, escapeLatex } from '@/lib/latex-utils';
-import type { ResumeSection } from '@/lib/types';
 
 const LATEX_COMPILE_URL = process.env.LATEX_COMPILE_URL || 'http://localhost:3001/compile';
+
+interface ResumeSection {
+  type: string;
+  content: any;
+}
 
 interface PersonalInfo {
   fullName?: string;

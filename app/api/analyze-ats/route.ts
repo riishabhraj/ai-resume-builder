@@ -42,18 +42,26 @@ export async function POST(request: NextRequest) {
 
     // Retrieve relevant knowledge from vector database
     console.log('Searching for relevant ATS knowledge...');
-    const { data: relevantDocs, error: searchError } = await supabase.rpc(
-      'match_ats_knowledge',
-      {
-        query_embedding: resumeEmbedding,
-        match_threshold: 0.5,
-        match_count: 10,
-      }
-    );
+    let relevantDocs: any[] | null = null;
+    
+    if (supabase) {
+      const { data, error: searchError } = await supabase.rpc(
+        'match_ats_knowledge',
+        {
+          query_embedding: resumeEmbedding,
+          match_threshold: 0.5,
+          match_count: 10,
+        }
+      );
 
-    if (searchError) {
-      console.error('Vector search error:', searchError);
-      // Continue without RAG if vector search fails
+      if (searchError) {
+        console.error('Vector search error:', searchError);
+        // Continue without RAG if vector search fails
+      } else {
+        relevantDocs = data;
+      }
+    } else {
+      console.log('Supabase not configured, skipping RAG');
     }
 
     // Build context from retrieved documents

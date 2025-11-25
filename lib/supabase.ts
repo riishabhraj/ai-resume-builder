@@ -4,22 +4,38 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Check if Supabase is properly configured
+/**
+ * Validates if Supabase configuration is properly set up
+ * Checks for presence of URL and key, and validates URL format
+ */
 const isSupabaseConfigured = 
-  supabaseUrl && 
-  supabaseUrl !== 'placeholder' && 
+  supabaseUrl.length > 0 && 
   supabaseUrl.startsWith('http') &&
-  (supabaseKey && supabaseKey !== 'placeholder');
+  supabaseKey.length > 0 &&
+  supabaseKey.startsWith('eyJ'); // JWT tokens start with eyJ
 
-// Only create client if properly configured, otherwise null
+/**
+ * Supabase client for client-side operations
+ * Returns null if credentials are not properly configured
+ */
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
-// Server-side client with service role key (for admin operations)
-export const supabaseAdmin = isSupabaseConfigured && supabaseServiceKey && supabaseServiceKey !== 'placeholder'
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : null;
+/**
+ * Supabase admin client with elevated permissions
+ * Used for server-side operations that require service role access
+ */
+export const supabaseAdmin = 
+  isSupabaseConfigured && 
+  supabaseServiceKey.length > 0 &&
+  supabaseServiceKey.startsWith('eyJ')
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : null;
 
+/**
+ * Flag indicating whether Supabase is available
+ * Use this to conditionally enable features that depend on Supabase
+ */
 export const hasSupabase = !!supabase;
 

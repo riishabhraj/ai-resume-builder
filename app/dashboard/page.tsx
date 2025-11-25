@@ -16,6 +16,12 @@ export default function Dashboard() {
 
   async function loadResumes() {
     try {
+      if (!supabase) {
+        console.error('Supabase not configured');
+        setLoading(false);
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();

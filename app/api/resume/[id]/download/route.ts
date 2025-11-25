@@ -3,10 +3,17 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resumeId = params.id;
+    const { id: resumeId } = await params;
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
 
     const { data: resume, error } = await supabaseAdmin
       .from('resume_versions')

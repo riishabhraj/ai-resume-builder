@@ -32,69 +32,77 @@ An AI-powered resume builder that creates professional, ATS-friendly resumes opt
 ## Prerequisites
 
 - Node.js 18+
-- Docker (for LaTeX compile service)
-- Supabase account
-- OpenAI or Groq API key
+- pnpm (or npm/yarn)
+- Docker (optional - for LaTeX PDF generation)
+- Groq API key (required - FREE from https://console.groq.com)
+- OpenAI API key (optional - for RAG enhancement)
+- Supabase account (optional - for RAG enhancement)
 
-## Setup Instructions
+## Quick Start
 
 ### 1. Install Dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
-### 2. Configure Supabase
+### 2. Configure Environment Variables
 
-The database schema is already applied via migrations. You need to set up your environment variables:
-
-Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials:
+Create `.env.local` in the project root:
 
 ```bash
-cp .env.local.example .env.local
-```
+# Minimal setup (works without RAG)
+GROQ_API_KEY=gsk_your_key_here
 
-Edit `.env.local`:
+# Optional: For RAG-enhanced analysis
+OPENAI_API_KEY=sk_your_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://yourproject.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbG...
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your-openai-key
-
+# Optional: For PDF generation
 LATEX_COMPILE_URL=http://localhost:3001/compile
 ```
 
-### 3. Start LaTeX Compile Service
+📖 **For detailed setup:** See [ENVIRONMENT.md](./ENVIRONMENT.md)
 
-The LaTeX compile service runs in Docker to safely compile LaTeX documents to PDF.
+### 3. Start Development Server
+
+```bash
+pnpm dev
+```
+
+The app will be available at `http://localhost:3000`.
+
+### 4. Optional: Start LaTeX Service (for PDF generation)
+
+Using Docker Compose (recommended):
+
+```bash
+docker-compose up -d latex-compile
+```
+
+Or manually:
 
 ```bash
 cd latex-compile
-npm install
 docker build -t latex-compile-service .
 docker run --rm -p 3001:3001 --name latex-compile latex-compile-service
 ```
 
-Alternatively, run it with resource limits for production:
+### 5. Optional: Set Up RAG Enhancement
 
+For AI-enhanced, role-specific suggestions:
+
+1. Set up Supabase database
+2. Run migration: `supabase-migrations/001_create_ats_knowledge.sql`
+3. Populate knowledge base:
 ```bash
-docker run --rm -p 3001:3001 \
-  --memory=512m \
-  --cpus=1 \
-  --name latex-compile \
-  latex-compile-service
+curl -X POST http://localhost:3000/api/setup-knowledge-base \
+  -H "x-api-key: your-admin-api-key"
 ```
 
-### 4. Start Development Server
-
-```bash
-npm run dev
-```
-
-The app will be available at `http://localhost:3000`.
+📖 **For detailed RAG setup:** See [RAG_ATS_SETUP.md](./RAG_ATS_SETUP.md)
 
 ## Usage
 
