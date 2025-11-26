@@ -8,30 +8,36 @@ type GeneratePdfOptions = {
 const viewport = { width: 1240, height: 1754, deviceScaleFactor: 1 };
 
 async function initBrowser(): Promise<{ browser: PuppeteerBrowser; page: PuppeteerPage }> {
-  // Local dev path: full puppeteer (pnpm add puppeteer)
-  // For serverless deployment, install puppeteer-core and chrome-aws-lambda,
-  // then uncomment the serverless path below and set USE_SERVERLESS_CHROME=1
-  const puppeteer = await import('puppeteer');
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-  const page = await browser.newPage();
-  return { browser, page };
-
-  /* Serverless path (uncomment when deploying to serverless):
-  if (process.env.USE_SERVERLESS_CHROME === '1') {
-    const chromium = await import('chrome-aws-lambda');
+  // Check if we're in a serverless environment
+  const isServerless = 
+    process.env.VERCEL || 
+    process.env.AWS_LAMBDA_FUNCTION_NAME || 
+    process.env.USE_SERVERLESS_CHROME === '1';
+  
+  if (isServerless) {
+    // Serverless path: use puppeteer-core + @sparticuz/chromium
+    const chromium = (await import('@sparticuz/chromium')).default;
     const puppeteerCore = await import('puppeteer-core');
+    
     const browser = await puppeteerCore.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
+      args: chromium.args || ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars', '--disable-web-security'],
+      defaultViewport: { width: 1240, height: 1754 },
+      executablePath: await chromium.executablePath(),
+      headless: true,
     });
+    
     const page = await browser.newPage();
     return { browser: browser as unknown as PuppeteerBrowser, page: page as unknown as PuppeteerPage };
+  } else {
+    // Local dev path: use full puppeteer
+    const puppeteer = await import('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+    return { browser, page };
   }
-  */
 }
 
 export async function generatePdfFromHtml({ html }: GeneratePdfOptions): Promise<Buffer> {
@@ -64,9 +70,11 @@ export async function generatePdfFromHtml({ html }: GeneratePdfOptions): Promise
 
 /*
 Local vs Serverless setup:
-- Local development: `pnpm add puppeteer`.
-- Serverless (Vercel / AWS Lambda): `pnpm add puppeteer-core chrome-aws-lambda`
-  and set USE_SERVERLESS_CHROME=1. Keep bundle size limits and Lambda layers in mind.
+- Local development: Uses full `puppeteer` package automatically
+- Serverless (Vercel / AWS Lambda): Automatically detects and uses `puppeteer-core` + `@sparticuz/chromium`
+  - Auto-detects via VERCEL or AWS_LAMBDA_FUNCTION_NAME environment variables
+  - Or manually set USE_SERVERLESS_CHROME=1 in production environment
+  - Keep bundle size limits and Lambda layers in mind
 
 Font + layout fidelity tips:
 - Make sure the HTML you pass includes the same CSS and fonts as /create.

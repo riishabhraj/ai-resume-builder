@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { generateEmbedding } from '@/lib/embeddings';
+import { supabase, hasSupabase } from '@/lib/supabase';
+import { generateEmbedding, hasOpenAI } from '@/lib/embeddings';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -37,31 +37,43 @@ export async function POST(request: NextRequest) {
     // Convert resume sections to text for embedding and analysis
     const resumeText = sectionsToText(sections);
     
-    console.log('Generating embedding for resume...');
-    const resumeEmbedding = await generateEmbedding(resumeText);
-
-    // Retrieve relevant knowledge from vector database
-    console.log('Searching for relevant ATS knowledge...');
+    // RAG (Retrieval-Augmented Generation) - Optional Enhancement
     let relevantDocs: any[] | null = null;
     
-    if (supabase) {
-      const { data, error: searchError } = await supabase.rpc(
-        'match_ats_knowledge',
-        {
-          query_embedding: resumeEmbedding,
-          match_threshold: 0.5,
-          match_count: 10,
-        }
-      );
+    // Only attempt RAG if OpenAI and Supabase are configured
+    if (hasOpenAI && hasSupabase && supabase) {
+      try {
+        console.log('RAG enabled - Generating embedding for resume...');
+        const resumeEmbedding = await generateEmbedding(resumeText);
 
-      if (searchError) {
-        console.error('Vector search error:', searchError);
-        // Continue without RAG if vector search fails
-      } else {
-        relevantDocs = data;
+        // Retrieve relevant knowledge from vector database
+        console.log('Searching for relevant ATS knowledge...');
+        const { data, error: searchError } = await supabase.rpc(
+          'match_ats_knowledge',
+          {
+            query_embedding: resumeEmbedding,
+            match_threshold: 0.5,
+            match_count: 10,
+          }
+        );
+
+        if (searchError) {
+          console.error('Vector search error:', searchError);
+          // Continue without RAG if vector search fails
+        } else {
+          relevantDocs = data;
+        }
+      } catch (ragError) {
+        console.error('RAG enhancement failed, continuing without it:', ragError);
+        // Continue without RAG if embedding generation fails
       }
     } else {
-      console.log('Supabase not configured, skipping RAG');
+      if (!hasOpenAI) {
+        console.log('OpenAI not configured, skipping RAG enhancement');
+      }
+      if (!hasSupabase || !supabase) {
+        console.log('Supabase not configured, skipping RAG enhancement');
+      }
     }
 
     // Build context from retrieved documents
@@ -131,6 +143,7 @@ export async function POST(request: NextRequest) {
       success: true,
       analysis,
       retrievedDocsCount: relevantDocs?.length || 0,
+      ragEnabled: hasOpenAI && hasSupabase,
     });
   } catch (error) {
     console.error('ATS analysis error:', error);
