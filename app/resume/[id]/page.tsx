@@ -11,7 +11,7 @@ import type { ResumeVersion } from '@/lib/types';
 export default function ResumePage() {
   const params = useParams();
   const router = useRouter();
-  const resumeId = params.id as string;
+  const resumeId = (params?.id as string) || '';
 
   const [resume, setResume] = useState<ResumeVersion | null>(null);
   const [loading, setLoading] = useState(true);

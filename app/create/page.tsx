@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target } from 'lucide-react';
 import Link from 'next/link';
 import { getAllTemplates, getDefaultTemplateId } from '@/lib/templates';
 import MonthYearPicker from '@/components/MonthYearPicker';
+import { DownloadPdfButton } from '@/components/DownloadPdfButton';
+import TailorToJobModal from '@/components/TailorToJobModal';
 
 type SectionType = 
   | 'personal-info'
@@ -112,13 +114,16 @@ export default function CreateResume() {
         phone: '',
     location: '',
         linkedin: '',
+        github: '',
         website: '',
       },
     },
   ]);
   const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const [exportHtml, setExportHtml] = useState('');
+  const [showTailorModal, setShowTailorModal] = useState(false);
 
   // Force preview re-render when sections change
   useEffect(() => {
@@ -159,49 +164,40 @@ export default function CreateResume() {
     );
   };
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      // Call API to generate PDF
-      const response = await fetch('/api/download-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sections,
-          templateId: selectedTemplate,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate PDF');
-      }
-
-      // Get the PDF blob
-      const blob = await response.blob();
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `resume_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Cleanup
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      alert('PDF downloaded successfully!');
-    } catch (error) {
-      console.error('Error generating resume:', error);
-      alert(`Failed to generate resume: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setGenerating(false);
-    }
+  // Helper function to get icon for a section type
+  const getSectionIcon = (sectionType: SectionType | string) => {
+    if (sectionType === 'personal-info') return '👤';
+    const template = SECTION_TEMPLATES.find((s) => s.type === sectionType);
+    return template?.icon || '📄';
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timeout = setTimeout(() => {
+      if (previewRef.current) {
+        // Extract only the ResumePreview content with data-resume-preview attribute
+        // This preserves all inline styles from the preview
+        const previewContent = previewRef.current.querySelector('[data-resume-preview]');
+        if (previewContent) {
+          // Clone the element to preserve all styles
+          const cloned = previewContent.cloneNode(true) as HTMLElement;
+          // Keep padding/margin as they define the layout spacing
+          // Only remove visual wrapper styles that shouldn't be in PDF
+          cloned.style.borderRadius = '0';
+          cloned.style.boxShadow = 'none';
+          cloned.style.border = 'none';
+          // Ensure font is explicitly set
+          cloned.style.fontFamily = '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif';
+          setExportHtml(cloned.outerHTML);
+        } else {
+          // Fallback: get innerHTML but log a warning
+          console.warn('Could not find [data-resume-preview], using fallback');
+          setExportHtml(previewRef.current.innerHTML);
+        }
+      }
+    }, 500); // Longer delay to ensure DOM, fonts, and SVG icons are fully rendered
+    return () => clearTimeout(timeout);
+  }, [sections, selectedTemplate, previewKey]);
 
   function getDefaultContent(type: SectionType): any {
     switch (type) {
@@ -315,30 +311,19 @@ export default function CreateResume() {
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <Link
-            href="/review"
+          <button
+            onClick={() => setShowTailorModal(true)}
             className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-green via-brand-cyan to-brand-green-light hover:scale-105 text-white border-2 border-brand-green/30 glow-green"
           >
-            <BarChart3 className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
-            Analyze ATS Score
-          </Link>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-brand-pink/30 glow-pink"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Download className="w-5 h-5 mr-2 group-hover:translate-y-0.5 transition-transform" />
-                Download PDF
-              </>
-            )}
+            <Target className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
+            Tailor to Job
           </button>
+          <DownloadPdfButton
+            html={exportHtml}
+            filename="resume.pdf"
+            className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-brand-pink/30 glow-pink"
+            label="Download PDF"
+          />
         </div>
       </header>
 
@@ -368,14 +353,14 @@ export default function CreateResume() {
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 text-2xl ${
                     section.id === 'personal-info' 
                       ? 'bg-gradient-to-br from-brand-pink via-brand-purple to-brand-pink-dark shadow-xl glow-pink' 
                       : editingSection === section.id
                         ? 'bg-gradient-to-br from-brand-cyan via-brand-green to-brand-cyan-dark shadow-xl glow-cyan'
                         : 'bg-gradient-to-br from-brand-dark-surface to-brand-dark-bg border-2 border-brand-purple/20'
                   }`}>
-                    {section.id === 'personal-info' ? '👤' : '📄'}
+                    {getSectionIcon(section.type)}
                 </div>
                   <span className="text-brand-white font-semibold group-hover:text-brand-cyan transition-colors">{section.title}</span>
                 </div>
@@ -438,7 +423,11 @@ export default function CreateResume() {
                 <p className="text-sm font-bold gradient-text-green">Preview Mode • PDF will have exact layout</p>
               </div>
             </div>
-            <div className="bg-white rounded-3xl shadow-2xl glow-purple p-16 min-h-[1100px] border-4 neon-border" style={{ fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif' }}>
+            <div
+              ref={previewRef}
+              className="bg-white rounded-3xl shadow-2xl glow-purple p-16 min-h-[1100px] border-4 neon-border"
+              style={{ fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif' }}
+            >
               <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} />
             </div>
           </div>
@@ -557,7 +546,30 @@ export default function CreateResume() {
           </div>
         </div>
       )}
-                  </div>
+
+      {/* Tailor to Job Modal */}
+      <TailorToJobModal
+        isOpen={showTailorModal}
+        onClose={() => setShowTailorModal(false)}
+        sections={sections}
+        onTailorComplete={(tailoredSections) => {
+          console.log('=== onTailorComplete CALLED ===');
+          console.log('Received sections:', tailoredSections.length);
+          console.log('Sections structure:', tailoredSections.map(s => ({ id: s.id, type: s.type, title: s.title })));
+          
+          // Validate sections before setting
+          if (!tailoredSections || !Array.isArray(tailoredSections) || tailoredSections.length === 0) {
+            console.error('Invalid sections received in onTailorComplete');
+            return;
+          }
+          
+          setSections(tailoredSections);
+          setPreviewKey(prev => prev + 1);
+          
+          console.log('Sections updated, preview key incremented');
+        }}
+      />
+    </div>
   );
 }
 
@@ -624,13 +636,37 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
                   />
                 </div>
           <div>
-            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">LinkedIn</label>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">
+              <Linkedin className="w-4 h-4 mr-2 text-brand-cyan" />
+              LinkedIn Username
+            </label>
             <input
-              type="url"
+              type="text"
               value={section.content.linkedin || ''}
-              onChange={(e) => onUpdate({ ...section.content, linkedin: e.target.value })}
+              onChange={(e) => {
+                // Remove any URL parts and keep only username
+                const username = e.target.value.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '').replace(/\/$/, '').trim();
+                onUpdate({ ...section.content, linkedin: username });
+              }}
               className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
-              placeholder="linkedin.com/in/johndoe"
+              placeholder="johndoe"
+                />
+              </div>
+          <div>
+            <label className="block text-sm font-semibold text-brand-white mb-3 flex items-center">
+              <Github className="w-4 h-4 mr-2 text-brand-purple" />
+              GitHub Username
+            </label>
+            <input
+              type="text"
+              value={section.content.github || ''}
+              onChange={(e) => {
+                // Remove any URL parts and keep only username
+                const username = e.target.value.replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/\/$/, '').trim();
+                onUpdate({ ...section.content, github: username });
+              }}
+              className="w-full px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-purple/20 rounded-xl focus:outline-none focus:border-brand-purple focus:shadow-lg focus:shadow-brand-purple/20 transition-all"
+              placeholder="johndoe"
                 />
               </div>
             </div>
@@ -1427,7 +1463,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 // Resume Preview Component - Matches LaTeX template styling
 function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; templateId: string }) {
   // Extract personal info with memoization to ensure proper updates
-  const { displayName, displayContact } = useMemo(() => {
+  const { displayName, displayContact, socialLinks } = useMemo(() => {
     const personalInfoSection = sections.find((s) => s.type === 'personal-info');
     const personalInfo = personalInfoSection?.content || {};
 
@@ -1436,12 +1472,63 @@ function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; te
     if (personalInfo.email) contactParts.push(personalInfo.email);
     if (personalInfo.phone) contactParts.push(personalInfo.phone);
     if (personalInfo.location) contactParts.push(personalInfo.location);
-    if (personalInfo.linkedin) contactParts.push(personalInfo.linkedin);
     const contactLine = contactParts.join(' | ');
+    
+    // Build social links with inline SVG icons (for PDF compatibility)
+    const socialLinks = [];
+    if (personalInfo.linkedin) {
+      const linkedinUrl = `https://www.linkedin.com/in/${personalInfo.linkedin}`;
+      socialLinks.push(
+        <a 
+          key="linkedin"
+          href={linkedinUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#000000', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="12" 
+            height="12" 
+            viewBox="0 0 24 24" 
+            fill="#000000" 
+            style={{ display: 'inline-block', verticalAlign: 'middle', width: '12px', height: '12px' }}
+          >
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+          </svg>
+          <span>{personalInfo.linkedin}</span>
+        </a>
+      );
+    }
+    if (personalInfo.github) {
+      const githubUrl = `https://github.com/${personalInfo.github}`;
+      socialLinks.push(
+        <a 
+          key="github"
+          href={githubUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#000000', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="12" 
+            height="12" 
+            viewBox="0 0 24 24" 
+            fill="#000000" 
+            style={{ display: 'inline-block', verticalAlign: 'middle', width: '12px', height: '12px' }}
+          >
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <span>{personalInfo.github}</span>
+        </a>
+      );
+    }
 
     return {
       displayName: (personalInfo.fullName && personalInfo.fullName.trim()),
-      displayContact: contactLine || ''
+      displayContact: contactLine || '',
+      socialLinks: socialLinks
     };
   }, [sections]);
 
@@ -1452,22 +1539,24 @@ function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; te
   const headerAlign = isModern ? 'left' : 'center';
 
   return (
-    <div style={{ 
-      fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif', 
-      fontSize: '11pt', 
-      lineHeight: '1.3', 
-      color: '#000000',
-      width: '100%',
-      minHeight: '800px',
-      paddingTop: '0px'
-    }}>
+    <div 
+      data-resume-preview
+      style={{ 
+        fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif', 
+        fontSize: '11pt', 
+        lineHeight: '1.3', 
+        color: '#000000',
+        width: '100%',
+        minHeight: '800px',
+        paddingTop: '0px'
+      }}>
       {/* Header */}
       <div style={{ 
         textAlign: headerAlign as 'left' | 'center', 
         marginBottom: '20px',
         paddingBottom: '8px',
         marginTop: '0px',
-        borderBottom: displayContact ? '1px solid #e0e0e0' : 'none'
+        borderBottom: (displayContact || socialLinks.length > 0) ? '1px solid #e0e0e0' : 'none'
       }}>
         {/* Name */}
         <h1 
@@ -1487,14 +1576,26 @@ function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; te
         </h1>
         
         {/* Contact Info */}
-        {displayContact && (
+        {(displayContact || socialLinks.length > 0) && (
           <div style={{ 
             fontSize: '10pt', 
             color: '#000000',
             marginTop: '6px',
-            lineHeight: '1.4'
+            lineHeight: '1.4',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}>
-            {displayContact}
+            {displayContact && <span>{displayContact}</span>}
+            {socialLinks.length > 0 && displayContact && <span>|</span>}
+            {socialLinks.map((link, idx) => (
+              <React.Fragment key={idx}>
+                {link}
+                {idx < socialLinks.length - 1 && <span>|</span>}
+              </React.Fragment>
+            ))}
           </div>
         )}
               </div>
