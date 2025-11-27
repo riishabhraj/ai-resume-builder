@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
+import Marquee from 'react-fast-marquee';
 import { FileText, Zap, Target, CheckCircle, BarChart3 } from 'lucide-react';
 
 export default function Home() {
   return (
     <>
     <div className="min-h-screen animated-gradient aurora" data-theme="atsbuilder">
-      <header className="glass sticky top-0 z-50 backdrop-blur-xl" style={{ border: 'none', borderBottom: '1px solid rgba(168, 85, 247, 0.3)' }}>
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3 group cursor-pointer">
@@ -154,6 +156,73 @@ export default function Home() {
                     recommendations.
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Companies Section with Scrolling Logos */}
+        <section className="py-20 relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-brand-white mb-4 leading-tight">
+                Get Hired at <span className="gradient-text">Top Companies</span>
+              </h2>
+              <p className="text-lg sm:text-xl text-brand-gray-text max-w-2xl mx-auto mt-4">
+                Create resumes optimized for roles at leading organizations
+              </p>
+            </div>
+
+            {/* Scrolling Company Logos */}
+            <div className="relative py-8">
+              <div className="marquee-fade-container">
+                <Marquee
+                  speed={50}
+                  gradient={false}
+                  pauseOnHover={true}
+                >
+                {[
+                  { name: 'Amazon', file: 'amazon.png' },
+                  { name: 'Apple', file: 'apple.png' },
+                  { name: 'Google', file: 'google.webp' },
+                  { name: 'Microsoft', file: 'microsoft.png' },
+                  { name: 'Netflix', file: 'netflix.png' },
+                  { name: 'NVIDIA', file: 'nvidia.png' },
+                  { name: 'Stripe', file: 'stripe.png' }
+                ].map((company, idx) => (
+                  <div
+                    key={idx}
+                    className="flex-shrink-0 flex items-center justify-center group mx-10"
+                  >
+                    <Image
+                      src={`/logos/${company.file}`}
+                      alt={company.name}
+                      width={120}
+                      height={120}
+                      className="w-24 h-24 sm:w-32 sm:h-32 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                      unoptimized
+                    />
+                  </div>
+                ))}
+                </Marquee>
+              </div>
+            </div>
+
+            {/* Features Footer */}
+            <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-sm sm:text-base text-brand-gray-text">
+              <div className="flex items-center space-x-2">
+                <span className="text-brand-green text-xl">✓</span>
+                <span>ATS-optimized formats</span>
+              </div>
+              <span className="text-brand-gray-dark hidden sm:inline">•</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-brand-green text-xl">✓</span>
+                <span>Industry-specific templates</span>
+              </div>
+              <span className="text-brand-gray-dark hidden sm:inline">•</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-brand-green text-xl">✓</span>
+                <span>AI-powered optimization</span>
               </div>
             </div>
           </div>

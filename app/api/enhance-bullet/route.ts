@@ -3,6 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
+// Diverse action verbs pool for variety
+const ACTION_VERBS = [
+  'Architected', 'Engineered', 'Orchestrated', 'Designed', 'Developed', 
+  'Implemented', 'Delivered', 'Optimized', 'Streamlined', 'Transformed', 
+  'Accelerated', 'Established', 'Executed', 'Enhanced', 'Built', 'Created', 
+  'Launched', 'Pioneered', 'Drove', 'Championed', 'Collaborated', 'Managed', 
+  'Directed', 'Facilitated', 'Integrated', 'Automated', 'Revamped', 'Scaled',
+  'Spearheaded', 'Led', 'Initiated', 'Conceptualized', 'Formulated', 'Crafted',
+  'Deployed', 'Refactored', 'Modernized', 'Restructured', 'Amplified', 'Elevated',
+  'Forged', 'Cultivated', 'Mentored', 'Negotiated', 'Resolved', 'Maximized'
+];
+
 export async function POST(request: NextRequest) {
   try {
     const { text, role, company } = await request.json();
@@ -21,6 +33,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Randomly select a verb to suggest variety (but AI can choose a different one if more appropriate)
+    const suggestedVerb = ACTION_VERBS[Math.floor(Math.random() * ACTION_VERBS.length)];
+    const alternativeVerbs = [
+      ACTION_VERBS[Math.floor(Math.random() * ACTION_VERBS.length)],
+      ACTION_VERBS[Math.floor(Math.random() * ACTION_VERBS.length)]
+    ].filter(v => v !== suggestedVerb).slice(0, 2);
+
     // Create context-aware prompt
     const contextInfo = role && company ? `for a ${role} at ${company}` : '';
     
@@ -28,14 +47,14 @@ export async function POST(request: NextRequest) {
 
 ATS OPTIMIZATION RULES (CRITICAL):
 1. Use industry-standard keywords and technical terms that ATS systems scan for
-2. Start with a strong, VARIED action verb - choose the MOST appropriate one for the specific achievement. Rotate through diverse verbs such as: Architected, Engineered, Orchestrated, Designed, Developed, Implemented, Delivered, Optimized, Streamlined, Transformed, Accelerated, Established, Executed, Enhanced, Built, Created, Launched, Pioneered, Drove, Championed, Collaborated, Managed, Directed, Facilitated, Integrated, Automated, Revamped, Scaled. CRITICAL: Match the verb intensity and type to the actual work done - don't use "Spearheaded" for everything.
+2. Start with a strong, VARIED action verb - choose the MOST appropriate one for the specific achievement. IMPORTANT: Use a DIFFERENT verb each time you enhance - avoid repeating the same starting verb. Consider verbs like: ${ACTION_VERBS.slice(0, 20).join(', ')}, and many others. CRITICAL: Match the verb intensity and type to the actual work done - don't use the same verb repeatedly. For this enhancement, consider starting with "${suggestedVerb}" or "${alternativeVerbs[0]}" or "${alternativeVerbs[1]}" if appropriate, but choose the best verb for the context.
 3. Add quantifiable metrics (%, $, #, time saved, users impacted, revenue increased)
 4. Use STAR format: Action + Result + Impact
 5. Avoid buzzwords like "team player", "hard worker" - use concrete achievements
 6. Include relevant technical skills/tools naturally
 7. Make it scannable - clear, concise, achievement-focused
 8. Length: 1-2 lines maximum (ATS prefers concise)
-9. VERB DIVERSITY: Select action verbs that authentically match the work described. "Architected" for system design, "Engineered" for technical building, "Orchestrated" for coordination, "Streamlined" for process improvement, "Delivered" for completing projects, etc.
+9. VERB DIVERSITY: Select action verbs that authentically match the work described. "Architected" for system design, "Engineered" for technical building, "Orchestrated" for coordination, "Streamlined" for process improvement, "Delivered" for completing projects, etc. CRITICAL: VARY THE STARTING VERB EACH TIME - avoid repetition patterns. Each enhancement should feel fresh and use different action verbs.
 
 RECRUITER PERSPECTIVE:
 - Recruiters spend 6 seconds per resume - make impact immediately visible
@@ -68,14 +87,14 @@ Enhanced version (return ONLY the enhanced bullet point, no quotes or explanatio
         messages: [
           {
             role: 'system',
-            content: 'You are a senior recruiter and ATS expert who has placed 1000+ candidates at Fortune 500 companies. Provide only the enhanced, ATS-optimized bullet point without quotes or explanation. Focus on quantifiable achievements, industry keywords, and business impact. CRITICAL: Use diverse action verbs that match the specific work - avoid overusing "Spearheaded" or any single verb. Choose contextually appropriate verbs.',
+            content: 'You are a senior recruiter and ATS expert who has placed 1000+ candidates at Fortune 500 companies. Provide only the enhanced, ATS-optimized bullet point without quotes or explanation. Focus on quantifiable achievements, industry keywords, and business impact. CRITICAL: Use diverse action verbs that match the specific work - vary the starting verb each time to avoid repetition. Choose contextually appropriate verbs from a wide variety.',
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        temperature: 0.7,
+        temperature: 0.85, // Increased for more variety in verb selection
         max_tokens: 250,
       }),
     });

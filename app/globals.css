@@ -215,4 +215,25 @@
   .neon-border {
     animation: neon-pulse 4s ease infinite;
   }
+  
+  /* Infinite scroll animation for companies - Now handled by react-fast-marquee */
+  
+  /* Fade effect for marquee - fade out at left, fade in from right */
+  .marquee-fade-container {
+    position: relative;
+    mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    );
+  }
 }
