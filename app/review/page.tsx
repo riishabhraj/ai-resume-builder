@@ -1,9 +1,11 @@
 'use client';
 
 import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, BarChart3 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { jobCategories, getCategoryById } from '@/lib/job-categories';
 import Link from 'next/link';
+import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 type Step = 'upload' | 'category' | 'field' | 'experience' | 'analyzing' | 'results';
 
@@ -27,6 +29,15 @@ interface AnalysisResult {
 }
 
 export default function ReviewPage() {
+  const router = useRouter();
+  
+  // Check if we should redirect to waitlist
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
+  
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState('');

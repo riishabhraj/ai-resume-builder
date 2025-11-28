@@ -7,6 +7,7 @@ import { FileText, Download, Loader2, CheckCircle, AlertCircle } from 'lucide-re
 import { supabase } from '@/lib/supabase/client';
 import { getATSRecommendations } from '@/lib/ats-scorer';
 import type { ResumeVersion } from '@/lib/types';
+import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 export default function ResumePage() {
   const params = useParams();
@@ -17,6 +18,13 @@ export default function ResumePage() {
   const [loading, setLoading] = useState(true);
   const [compiling, setCompiling] = useState(false);
   const [recommendations, setRecommendations] = useState<string[]>([]);
+
+  // Check if we should redirect to waitlist
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
 
   useEffect(() => {
     loadResume();

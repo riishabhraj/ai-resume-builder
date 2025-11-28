@@ -4,8 +4,21 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Marquee from 'react-fast-marquee';
 import { FileText, Zap, Target, CheckCircle, BarChart3 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import WaitlistForm from '@/components/WaitlistForm';
+import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 export default function Home() {
+  const router = useRouter();
+  
+  // Check if we should redirect to waitlist
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
+  
   return (
     <>
     <div className="min-h-screen animated-gradient aurora" data-theme="atsbuilder">

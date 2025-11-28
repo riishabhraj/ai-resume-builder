@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getAllTemplates, getDefaultTemplateId } from '@/lib/templates';
 import MonthYearPicker from '@/components/MonthYearPicker';
 import { DownloadPdfButton } from '@/components/DownloadPdfButton';
 import TailorToJobModal from '@/components/TailorToJobModal';
+import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 type SectionType = 
   | 'personal-info'
@@ -99,6 +101,15 @@ const SECTION_TEMPLATES = [
 ];
 
 export default function CreateResume() {
+  const router = useRouter();
+  
+  // Check if we should redirect to waitlist
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
+  
   const [step, setStep] = useState<'template' | 'editor'>('editor'); // Skip template selection, go directly to editor
   const [selectedTemplate, setSelectedTemplate] = useState<string>(getDefaultTemplateId());
   const [showAddSection, setShowAddSection] = useState(false);

@@ -2,13 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FileText, Plus, Loader2, Download, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import type { ResumeVersion } from '@/lib/types';
+import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [resumes, setResumes] = useState<ResumeVersion[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Check if we should redirect to waitlist
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
 
   useEffect(() => {
     loadResumes();
