@@ -5,7 +5,8 @@ type GeneratePdfOptions = {
   html: string;
 };
 
-const viewport = { width: 1240, height: 1754, deviceScaleFactor: 1 };
+// Match preview dimensions: 850px × 1100px
+const viewport = { width: 850, height: 1100, deviceScaleFactor: 1 };
 
 async function initBrowser(): Promise<{ browser: PuppeteerBrowser; page: PuppeteerPage }> {
   // Check if we're in a serverless environment
@@ -21,7 +22,7 @@ async function initBrowser(): Promise<{ browser: PuppeteerBrowser; page: Puppete
     
     const browser = await puppeteerCore.launch({
       args: chromium.args || ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars', '--disable-web-security'],
-      defaultViewport: { width: 1240, height: 1754 },
+      defaultViewport: { width: 850, height: 1100 },
       executablePath: await chromium.executablePath(),
       headless: true,
     });
@@ -53,7 +54,8 @@ export async function generatePdfFromHtml({ html }: GeneratePdfOptions): Promise
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const pdf = await page.pdf({
-      format: 'A4',
+      width: '225mm',  // Match preview width (850px)
+      height: '291mm', // Match preview height (1100px)
       printBackground: true,
       preferCSSPageSize: true,
       margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },

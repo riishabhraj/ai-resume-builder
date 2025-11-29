@@ -1,7 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target } from 'lucide-react';
+import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getAllTemplates, getDefaultTemplateId } from '@/lib/templates';
@@ -135,11 +152,74 @@ export default function CreateResume() {
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [exportHtml, setExportHtml] = useState('');
   const [showTailorModal, setShowTailorModal] = useState(false);
+  const [importingPdf, setImportingPdf] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pageBreaks, setPageBreaks] = useState<number[]>([]);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Compute available sections (filter out already added ones)
+  const availableSections = useMemo(() => {
+    // Get all section types that are already added
+    const addedSectionTypes = new Set(sections.map(s => s.type));
+    
+    // Filter out sections that are already added
+    return SECTION_TEMPLATES.filter(template => !addedSectionTypes.has(template.type));
+  }, [sections]);
 
   // Force preview re-render when sections change
   useEffect(() => {
     setPreviewKey(prev => prev + 1);
   }, [sections]);
+
+  // Calculate page breaks for visual indicators
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Wait for DOM to update and ensure fonts are loaded
+    const timeout = setTimeout(() => {
+      if (previewRef.current) {
+        // Container has p-16 (64px padding on all sides)
+        const container = previewRef.current;
+        const containerPadding = 64; // p-16 = 64px
+        const pageHeight = 1100; // One page height in px (matches PDF: 291mm)
+        
+        // Get the content element inside the container
+        const content = container.querySelector('[data-resume-preview]') as HTMLElement;
+        if (!content) return;
+        
+        // Measure content height (this is the actual content without container padding)
+        const contentHeight = content.scrollHeight;
+        
+        // Calculate usable content area per page (page height minus top and bottom padding)
+        const usableContentPerPage = pageHeight - (containerPadding * 2); // 1100 - 128 = 972px
+        
+        // Calculate number of pages based on content height
+        const numberOfPages = Math.ceil((contentHeight + containerPadding * 2) / pageHeight);
+        
+        // Only show page breaks if content exceeds one page
+        if (numberOfPages > 1) {
+          const breaks: number[] = [];
+          for (let i = 1; i < numberOfPages; i++) {
+            // Page break at i * pageHeight from container top
+            // This accounts for padding because pageHeight includes padding (matches PDF)
+            breaks.push(i * pageHeight);
+          }
+          setPageBreaks(breaks);
+        } else {
+          setPageBreaks([]);
+        }
+      }
+    }, 300); // Increased timeout to ensure DOM and fonts are fully rendered
+
+    return () => clearTimeout(timeout);
+  }, [sections, previewKey]);
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
@@ -175,12 +255,198 @@ export default function CreateResume() {
     );
   };
 
+  const handleImportPdf = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('Please select a PDF file');
+      return;
+    }
+
+    setImportingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/import-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to import PDF');
+      }
+
+      if (data.sections && data.sections.length > 0) {
+        // Merge imported sections with existing sections
+        // Update personal-info if it exists, otherwise add new sections
+        const existingPersonalInfoIndex = sections.findIndex(s => s.id === 'personal-info');
+        const importedPersonalInfo = data.sections.find((s: ResumeSection) => s.id === 'personal-info');
+        
+        let updatedSections = [...sections];
+
+        if (importedPersonalInfo && existingPersonalInfoIndex >= 0) {
+          // Update existing personal info
+          updatedSections[existingPersonalInfoIndex] = importedPersonalInfo;
+        } else if (importedPersonalInfo) {
+          // Add personal info if it doesn't exist
+          updatedSections[0] = importedPersonalInfo;
+        }
+
+        // Add other sections (skip personal-info as it's already handled)
+        const otherSections = data.sections.filter((s: ResumeSection) => s.id !== 'personal-info');
+        updatedSections = [...updatedSections, ...otherSections];
+
+        setSections(updatedSections);
+        // Success - sections are imported silently
+      } else {
+        alert('No sections were extracted from the PDF. Please check the file and try again.');
+      }
+    } catch (error) {
+      console.error('Import PDF error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to import PDF. Please try again.');
+    } finally {
+      setImportingPdf(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Drag end handler
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    // Don't allow dragging personal-info or dragging over personal-info
+    if (active.id === 'personal-info' || over.id === 'personal-info') {
+      return;
+    }
+
+    setSections((items) => {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+
+      // Ensure personal-info stays at index 0
+      const reordered = arrayMove(items, oldIndex, newIndex);
+      
+      // If personal-info moved, put it back at the top
+      const personalInfoIndex = reordered.findIndex((item) => item.id === 'personal-info');
+      if (personalInfoIndex !== 0) {
+        const personalInfo = reordered[personalInfoIndex];
+        reordered.splice(personalInfoIndex, 1);
+        reordered.unshift(personalInfo);
+      }
+
+      return reordered;
+    });
+  };
+
   // Helper function to get icon for a section type
   const getSectionIcon = (sectionType: SectionType | string) => {
     if (sectionType === 'personal-info') return '👤';
     const template = SECTION_TEMPLATES.find((s) => s.type === sectionType);
     return template?.icon || '📄';
   };
+
+  // SortableSection component
+  function SortableSection({ section, isEditing, onEdit, onRemove }: {
+    section: ResumeSection;
+    isEditing: boolean;
+    onEdit: () => void;
+    onRemove: () => void;
+  }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: section.id,
+      disabled: section.id === 'personal-info', // Disable dragging for personal-info
+    });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        onClick={onEdit}
+        className={`group flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
+          isEditing
+            ? 'bg-gradient-to-r from-brand-purple/20 via-brand-pink/20 to-brand-cyan/20 border-2 neon-border shadow-2xl scale-[1.03]'
+            : 'bg-brand-dark-card/50 border-2 border-brand-purple/10 hover:border-brand-purple/30 hover:bg-brand-dark-card/70 hover:scale-[1.02] backdrop-blur-sm'
+        } ${isDragging ? 'z-50' : ''}`}
+      >
+        <div className="flex items-center space-x-3 flex-1">
+          {/* Drag Handle - only show for non-personal-info sections */}
+          {section.id !== 'personal-info' && (
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-brand-gray-text hover:text-brand-purple transition-colors p-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-5 h-5" />
+            </div>
+          )}
+          
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 text-2xl ${
+            section.id === 'personal-info' 
+              ? 'bg-gradient-to-br from-brand-pink via-brand-purple to-brand-pink-dark shadow-xl glow-pink' 
+              : isEditing
+                ? 'bg-gradient-to-br from-brand-cyan via-brand-green to-brand-cyan-dark shadow-xl glow-cyan'
+                : 'bg-gradient-to-br from-brand-dark-surface to-brand-dark-bg border-2 border-brand-purple/20'
+          }`}>
+            {getSectionIcon(section.type)}
+          </div>
+          <span className="text-brand-white font-semibold group-hover:text-brand-cyan transition-colors">{section.title}</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          {section.id === 'personal-info' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="text-brand-cyan hover:text-brand-cyan-light p-2 rounded-lg hover:bg-brand-cyan/10 transition-all hover:scale-110"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+          )}
+          {section.id !== 'personal-info' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/20 transition-all hover:scale-110"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -352,56 +618,28 @@ export default function CreateResume() {
             </div>
                 </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {sections.map((section) => (
-              <div
-                key={section.id}
-                onClick={() => setEditingSection(section.id)}
-                className={`group flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
-                  editingSection === section.id
-                    ? 'bg-gradient-to-r from-brand-purple/20 via-brand-pink/20 to-brand-cyan/20 border-2 neon-border shadow-2xl scale-[1.03]'
-                    : 'bg-brand-dark-card/50 border-2 border-brand-purple/10 hover:border-brand-purple/30 hover:bg-brand-dark-card/70 hover:scale-[1.02] backdrop-blur-sm'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 text-2xl ${
-                    section.id === 'personal-info' 
-                      ? 'bg-gradient-to-br from-brand-pink via-brand-purple to-brand-pink-dark shadow-xl glow-pink' 
-                      : editingSection === section.id
-                        ? 'bg-gradient-to-br from-brand-cyan via-brand-green to-brand-cyan-dark shadow-xl glow-cyan'
-                        : 'bg-gradient-to-br from-brand-dark-surface to-brand-dark-bg border-2 border-brand-purple/20'
-                  }`}>
-                    {getSectionIcon(section.type)}
-                </div>
-                  <span className="text-brand-white font-semibold group-hover:text-brand-cyan transition-colors">{section.title}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {section.id === 'personal-info' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingSection(section.id);
-                      }}
-                      className="text-brand-cyan hover:text-brand-cyan-light p-2 rounded-lg hover:bg-brand-cyan/10 transition-all hover:scale-110"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  )}
-                  {section.id !== 'personal-info' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveSection(section.id);
-                      }}
-                      className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/20 transition-all hover:scale-110"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sections.map(s => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {sections.map((section) => (
+                  <SortableSection
+                    key={section.id}
+                    section={section}
+                    isEditing={editingSection === section.id}
+                    onEdit={() => setEditingSection(section.id)}
+                    onRemove={() => handleRemoveSection(section.id)}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
 
           <div className="p-4 border-t border-brand-purple/20 space-y-3 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-t from-brand-dark-bg/80 to-transparent"></div>
@@ -412,10 +650,30 @@ export default function CreateResume() {
               <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300 text-brand-pink-light" />
               <span className="gradient-text-purple">Add Section</span>
             </button>
-            <button className="relative group w-full flex items-center justify-center space-x-2 p-4 rounded-2xl bg-gradient-to-r from-brand-cyan/10 to-brand-green/10 border-2 border-brand-cyan/30 hover:border-brand-cyan hover:shadow-xl glow-cyan text-brand-white transition-all duration-300 hover:scale-[1.03] font-bold backdrop-blur-sm">
-              <Upload className="w-6 h-6 group-hover:translate-y-0.5 transition-transform duration-300 text-brand-cyan-light" />
-              <span className="gradient-text-green">Import from PDF</span>
+            <button
+              onClick={handleImportPdf}
+              disabled={importingPdf}
+              className="relative group w-full flex items-center justify-center space-x-2 p-4 rounded-2xl bg-gradient-to-r from-brand-cyan/10 to-brand-green/10 border-2 border-brand-cyan/30 hover:border-brand-cyan hover:shadow-xl glow-cyan text-brand-white transition-all duration-300 hover:scale-[1.03] font-bold backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {importingPdf ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin text-brand-cyan-light" />
+                  <span className="gradient-text-green">Importing...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-6 h-6 group-hover:translate-y-0.5 transition-transform duration-300 text-brand-cyan-light" />
+                  <span className="gradient-text-green">Import from PDF</span>
+                </>
+              )}
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </div>
         </div>
 
@@ -436,9 +694,25 @@ export default function CreateResume() {
             </div>
             <div
               ref={previewRef}
-              className="bg-white rounded-3xl shadow-2xl glow-purple p-16 min-h-[1100px] border-4 neon-border"
-              style={{ fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif' }}
+              className="bg-white rounded-3xl shadow-2xl glow-purple p-16 border-4 neon-border relative"
+              style={{ 
+                fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif',
+                minHeight: '1100px', // One page minimum
+                maxHeight: 'none' // Allow growth for multiple pages
+              }}
             >
+              {/* Visual page break indicators */}
+              {pageBreaks.map((breakPoint, index) => (
+                <div
+                  key={index}
+                  className="absolute left-0 right-0 border-t-2 border-dashed border-red-400/30 pointer-events-none z-10"
+                  style={{ top: `${breakPoint}px` }}
+                >
+                  <span className="absolute right-4 -top-3 bg-red-400/20 text-red-600 text-xs px-2 py-1 rounded">
+                    Page {index + 2}
+                  </span>
+                </div>
+              ))}
               <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} />
             </div>
           </div>
@@ -525,34 +799,42 @@ export default function CreateResume() {
 
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {SECTION_TEMPLATES.map((template, index) => {
-                  const colors = [
-                    { from: 'brand-purple', to: 'brand-pink', glow: 'glow-purple' },
-                    { from: 'brand-cyan', to: 'brand-green', glow: 'glow-cyan' },
-                    { from: 'brand-pink', to: 'brand-purple', glow: 'glow-pink' },
-                    { from: 'brand-green', to: 'brand-cyan', glow: 'glow-green' },
-                  ];
-                  const colorSet = colors[index % colors.length];
-                  
-                  return (
-                    <button
-                      key={template.type}
-                      onClick={() => handleAddSection(template.type)}
-                      className={`group relative p-7 rounded-3xl glass border-2 border-${colorSet.from}/20 hover:border-${colorSet.from}/60 hover:shadow-2xl ${colorSet.glow} text-left transition-all duration-300 hover:scale-[1.05] backdrop-blur-sm overflow-hidden`}
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-br from-${colorSet.from}/5 to-${colorSet.to}/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl`}></div>
-                      <div className="relative">
-                        <div className="text-5xl mb-5 group-hover:scale-125 group-hover:rotate-6 transition-all duration-300">{template.icon}</div>
-                        <h3 className={`text-xl font-black text-brand-white mb-3 group-hover:bg-gradient-to-r group-hover:from-${colorSet.from} group-hover:to-${colorSet.to} group-hover:bg-clip-text group-hover:text-transparent transition-all`}>
-                          {template.title}
-                        </h3>
-                        <p className="text-sm text-brand-gray-text leading-relaxed">{template.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              {availableSections.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="text-6xl mb-4">✅</div>
+                  <h3 className="text-2xl font-bold text-brand-white mb-2">All Sections Added</h3>
+                  <p className="text-brand-gray-text">You've added all available sections to your resume.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {availableSections.map((template, index) => {
+                    const colors = [
+                      { from: 'brand-purple', to: 'brand-pink', glow: 'glow-purple' },
+                      { from: 'brand-cyan', to: 'brand-green', glow: 'glow-cyan' },
+                      { from: 'brand-pink', to: 'brand-purple', glow: 'glow-pink' },
+                      { from: 'brand-green', to: 'brand-cyan', glow: 'glow-green' },
+                    ];
+                    const colorSet = colors[index % colors.length];
+                    
+                    return (
+                      <button
+                        key={template.type}
+                        onClick={() => handleAddSection(template.type)}
+                        className={`group relative p-7 rounded-3xl glass border-2 border-${colorSet.from}/20 hover:border-${colorSet.from}/60 hover:shadow-2xl ${colorSet.glow} text-left transition-all duration-300 hover:scale-[1.05] backdrop-blur-sm overflow-hidden`}
+                      >
+                        <div className={`absolute inset-0 bg-gradient-to-br from-${colorSet.from}/5 to-${colorSet.to}/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl`}></div>
+                        <div className="relative">
+                          <div className="text-5xl mb-5 group-hover:scale-125 group-hover:rotate-6 transition-all duration-300">{template.icon}</div>
+                          <h3 className={`text-xl font-black text-brand-white mb-3 group-hover:bg-gradient-to-r group-hover:from-${colorSet.from} group-hover:to-${colorSet.to} group-hover:bg-clip-text group-hover:text-transparent transition-all`}>
+                            {template.title}
+                          </h3>
+                          <p className="text-sm text-brand-gray-text leading-relaxed">{template.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1562,13 +1844,18 @@ function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; te
         paddingTop: '0px'
       }}>
       {/* Header */}
-      <div style={{ 
-        textAlign: headerAlign as 'left' | 'center', 
-        marginBottom: '20px',
-        paddingBottom: '8px',
-        marginTop: '0px',
-        borderBottom: (displayContact || socialLinks.length > 0) ? '1px solid #e0e0e0' : 'none'
-      }}>
+      <div 
+        className="resume-header"
+        style={{ 
+          textAlign: headerAlign as 'left' | 'center', 
+          marginBottom: '20px',
+          paddingBottom: '8px',
+          marginTop: '0px',
+          borderBottom: (displayContact || socialLinks.length > 0) ? '1px solid #e0e0e0' : 'none',
+          pageBreakAfter: 'avoid',
+          breakAfter: 'avoid'
+        }}
+      >
         {/* Name */}
         <h1 
           style={{ 
@@ -1618,7 +1905,16 @@ function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; te
         }
 
         return (
-          <div key={section.id} style={{ marginTop: '20px', marginBottom: '20px' }}>
+          <div 
+            key={section.id} 
+            className="resume-section"
+            style={{ 
+              marginTop: '20px', 
+              marginBottom: '20px',
+              pageBreakInside: 'avoid',
+              breakInside: 'avoid'
+            }}
+          >
             {/* Section Header - ALL BLACK */}
             <div style={{ marginBottom: '10px' }}>
               <h2 

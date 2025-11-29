@@ -10,10 +10,13 @@ type RequestBody = {
 
 const PRINT_STYLES = `
   <style>
-    @page { size: A4; margin: 0; }
+    @page { 
+      size: 225mm 291mm; /* Match preview: 850px × 1100px */
+      margin: 0; 
+    }
     html, body {
-      width: 210mm;
-      height: 297mm;
+      width: 225mm; /* 850px */
+      height: 291mm; /* 1100px */
       margin: 0;
       padding: 0;
       -webkit-print-color-adjust: exact;
@@ -38,6 +41,28 @@ const PRINT_STYLES = `
     h1, h2, h3, h4, h5, h6, p, div, span, li, ul, ol {
       font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif !important;
     }
+    /* Page break rules for multi-page support */
+    .resume-section {
+      page-break-inside: avoid; /* Prevent sections from breaking across pages */
+      break-inside: avoid;
+      /* Allow page breaks before sections if needed */
+      page-break-before: auto;
+      break-before: auto;
+    }
+    /* Prevent header from breaking */
+    .resume-header {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+    /* Prevent orphaned lines but allow natural page breaks */
+    p, li {
+      orphans: 2;
+      widows: 2;
+    }
+    /* Ensure content flows naturally and breaks at page boundaries */
+    [data-resume-preview] {
+      page-break-inside: auto;
+    }
     /* Only reset margins on body/html, preserve everything else */
     .avoid-break { page-break-inside: avoid; }
   </style>
@@ -56,7 +81,7 @@ function buildHtml(content: string): string {
       ${PRINT_STYLES}
     </head>
     <body style="margin: 0; padding: 0; background: white;">
-      <div style="padding: 13mm; box-sizing: border-box; width: 100%; min-height: 100vh;">
+      <div style="padding: 17mm; box-sizing: border-box; width: 100%; min-height: 100vh;">
         ${content}
       </div>
     </body>
