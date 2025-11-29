@@ -195,13 +195,23 @@ export default function Home() {
                   pauseOnHover={true}
                 >
                 {[
+                  { name: 'Adobe', file: 'adobe.png' },
                   { name: 'Amazon', file: 'amazon.png' },
                   { name: 'Apple', file: 'apple.png' },
+                  { name: 'Datadog', file: 'datadog.png' },
                   { name: 'Google', file: 'google.webp' },
+                  { name: 'Intuit', file: 'intuit.png' },
+                  { name: 'LinkedIn', file: 'linkedin.png' },
+                  { name: 'Meta', file: 'meta.png' },
                   { name: 'Microsoft', file: 'microsoft.png' },
                   { name: 'Netflix', file: 'netflix.png' },
                   { name: 'NVIDIA', file: 'nvidia.png' },
-                  { name: 'Stripe', file: 'stripe.png' }
+                  { name: 'Oracle', file: 'oracle.png' },
+                  { name: 'PayPal', file: 'paypal.png' },
+                  { name: 'Spotify', file: 'spotify.png' },
+                  { name: 'Stripe', file: 'stripe.png' },
+                  { name: 'Tesla', file: 'tesla.png' },
+                  { name: 'Uber', file: 'uber.png' }
                 ].map((company, idx) => (
                   <div
                     key={idx}
