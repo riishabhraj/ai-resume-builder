@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target, GripVertical } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target, GripVertical, CheckCircle, AlertCircle } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -20,33 +20,16 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getAllTemplates, getDefaultTemplateId } from '@/lib/templates';
 import MonthYearPicker from '@/components/MonthYearPicker';
 import { DownloadPdfButton } from '@/components/DownloadPdfButton';
 import TailorToJobModal from '@/components/TailorToJobModal';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
-
-type SectionType = 
-  | 'personal-info'
-  | 'professional-summary'
-  | 'career-objective'
-  | 'education'
-  | 'experience'
-  | 'leadership'
-  | 'projects'
-  | 'research'
-  | 'certifications'
-  | 'awards'
-  | 'publications'
-  | 'skills';
-
-interface ResumeSection {
-  id: string;
-  type: SectionType;
-  title: string;
-  content: any;
-}
+import { useResumeStore } from '@/stores/resumeStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useAutoSave } from '@/lib/auto-save';
+import type { StructuredResumeSection, SectionType } from '@/lib/types';
 
 const SECTION_TEMPLATES = [
   {
@@ -119,6 +102,8 @@ const SECTION_TEMPLATES = [
 
 export default function CreateResume() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resumeIdFromUrl = searchParams?.get('id') || null;
   
   // Check if we should redirect to waitlist
   useEffect(() => {
@@ -127,34 +112,90 @@ export default function CreateResume() {
     }
   }, [router]);
   
+  // Zustand store for resume state
+  const {
+    sections,
+    selectedTemplate,
+    showAddSection,
+    editingSection,
+    previewKey,
+    exportHtml,
+    showTailorModal,
+    importingPdf,
+    pageBreaks,
+    enhancingBullet,
+    keywordInput,
+    resumeId,
+    setSections,
+    setSelectedTemplate,
+    setShowAddSection,
+    setEditingSection,
+    setPreviewKey,
+    setExportHtml,
+    setShowTailorModal,
+    setImportingPdf,
+    setPageBreaks,
+    setEnhancingBullet,
+    setKeywordInput,
+    addSection,
+    updateSection,
+    removeSection,
+    reorderSections,
+    setResumeId,
+    loadResume,
+    resetResume,
+  } = useResumeStore();
+  
+  const { user, initialized } = useAuthStore();
+  const { triggerAutoSave } = useAutoSave();
+  
   const [step, setStep] = useState<'template' | 'editor'>('editor'); // Skip template selection, go directly to editor
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(getDefaultTemplateId());
-  const [showAddSection, setShowAddSection] = useState(false);
-  const [sections, setSections] = useState<ResumeSection[]>([
-    {
-      id: 'personal-info',
-      type: 'personal-info',
-      title: 'Personal Info',
-      content: {
-    fullName: '',
-    title: '',
-    email: '',
-        phone: '',
-    location: '',
-        linkedin: '',
-        github: '',
-        website: '',
-      },
-    },
-  ]);
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [previewKey, setPreviewKey] = useState(0);
+  const [loadingResume, setLoadingResume] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const [exportHtml, setExportHtml] = useState('');
-  const [showTailorModal, setShowTailorModal] = useState(false);
-  const [importingPdf, setImportingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [pageBreaks, setPageBreaks] = useState<number[]>([]);
+  
+  // Load resume from URL if provided
+  const loadResumeFromApi = useCallback(async (id: string) => {
+    setLoadingResume(true);
+    try {
+      const response = await fetch(`/api/resume/${id}`);
+      if (!response.ok) throw new Error('Failed to load resume');
+      
+      const data = await response.json();
+      if (data.success && data.resume) {
+        loadResume({
+          id: data.resume.id,
+          sections: data.resume.sections || [],
+          template_id: data.resume.template_id,
+        });
+        setResumeId(data.resume.id);
+      }
+    } catch (error) {
+      console.error('Error loading resume:', error);
+      alert('Failed to load resume. Creating new one.');
+      setResumeId(null);
+      resetResume();
+    } finally {
+      setLoadingResume(false);
+    }
+  }, [loadResume, setResumeId, resetResume]);
+
+  useEffect(() => {
+    if (resumeIdFromUrl && initialized && user && !loadingResume) {
+      loadResumeFromApi(resumeIdFromUrl);
+    } else if (!resumeIdFromUrl && resumeId) {
+      // If no URL param but we have a resumeId in store, clear it (new resume)
+      setResumeId(null);
+      resetResume();
+    }
+  }, [resumeIdFromUrl, initialized, user, loadingResume, resumeId, setResumeId, resetResume, loadResumeFromApi]);
+
+  // Auto-save on sections change
+  useEffect(() => {
+    if (initialized && user && sections.length > 0 && !loadingResume) {
+      triggerAutoSave();
+    }
+  }, [sections, selectedTemplate, initialized, user, triggerAutoSave, loadingResume]);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -175,8 +216,8 @@ export default function CreateResume() {
 
   // Force preview re-render when sections change
   useEffect(() => {
-    setPreviewKey(prev => prev + 1);
-  }, [sections]);
+    setPreviewKey(previewKey + 1);
+  }, [sections, previewKey, setPreviewKey]);
 
   // Calculate page breaks for visual indicators
   useEffect(() => {
@@ -230,29 +271,25 @@ export default function CreateResume() {
     const template = SECTION_TEMPLATES.find((s) => s.type === sectionType);
     if (!template) return;
 
-    const newSection: ResumeSection = {
+    const newSection: StructuredResumeSection = {
       id: `${sectionType}-${Date.now()}`,
       type: sectionType,
       title: template.title,
       content: getDefaultContent(sectionType),
     };
 
-    setSections([...sections, newSection]);
+    addSection(newSection);
     setShowAddSection(false);
     setEditingSection(newSection.id);
   };
 
   const handleRemoveSection = (sectionId: string) => {
     if (sectionId === 'personal-info') return; // Can't remove personal info
-    setSections(sections.filter((s) => s.id !== sectionId));
+    removeSection(sectionId);
   };
 
   const handleUpdateSection = (sectionId: string, content: any) => {
-    setSections((prevSections) =>
-      prevSections.map((s) =>
-        s.id === sectionId ? { ...s, content } : s
-      )
-    );
+    updateSection(sectionId, content);
   };
 
   const handleImportPdf = () => {
@@ -288,7 +325,7 @@ export default function CreateResume() {
         // Merge imported sections with existing sections
         // Update personal-info if it exists, otherwise add new sections
         const existingPersonalInfoIndex = sections.findIndex(s => s.id === 'personal-info');
-        const importedPersonalInfo = data.sections.find((s: ResumeSection) => s.id === 'personal-info');
+        const importedPersonalInfo = data.sections.find((s: StructuredResumeSection) => s.id === 'personal-info');
         
         let updatedSections = [...sections];
 
@@ -301,7 +338,7 @@ export default function CreateResume() {
         }
 
         // Add other sections (skip personal-info as it's already handled)
-        const otherSections = data.sections.filter((s: ResumeSection) => s.id !== 'personal-info');
+        const otherSections = data.sections.filter((s: StructuredResumeSection) => s.id !== 'personal-info');
         updatedSections = [...updatedSections, ...otherSections];
 
         setSections(updatedSections);
@@ -334,23 +371,12 @@ export default function CreateResume() {
       return;
     }
 
-    setSections((items) => {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
+    const oldIndex = sections.findIndex((item) => item.id === active.id);
+    const newIndex = sections.findIndex((item) => item.id === over.id);
 
-      // Ensure personal-info stays at index 0
-      const reordered = arrayMove(items, oldIndex, newIndex);
-      
-      // If personal-info moved, put it back at the top
-      const personalInfoIndex = reordered.findIndex((item) => item.id === 'personal-info');
-      if (personalInfoIndex !== 0) {
-        const personalInfo = reordered[personalInfoIndex];
-        reordered.splice(personalInfoIndex, 1);
-        reordered.unshift(personalInfo);
-      }
-
-      return reordered;
-    });
+    if (oldIndex !== -1 && newIndex !== -1) {
+      reorderSections(oldIndex, newIndex);
+    }
   };
 
   // Helper function to get icon for a section type
@@ -362,7 +388,7 @@ export default function CreateResume() {
 
   // SortableSection component
   function SortableSection({ section, isEditing, onEdit, onRemove }: {
-    section: ResumeSection;
+    section: StructuredResumeSection;
     isEditing: boolean;
     onEdit: () => void;
     onRemove: () => void;
@@ -588,6 +614,7 @@ export default function CreateResume() {
           </div>
         </div>
         <div className="flex items-center space-x-3">
+          <SaveStatusIndicator />
           <button
             onClick={() => setShowTailorModal(true)}
             className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-green via-brand-cyan to-brand-green-light hover:scale-105 text-white border-2 border-brand-green/30 glow-green"
@@ -750,6 +777,10 @@ export default function CreateResume() {
                 <SectionEditor
                   section={currentSection}
                   onUpdate={(content) => handleUpdateSection(editingSection, content)}
+                  enhancingBullet={enhancingBullet}
+                  setEnhancingBullet={setEnhancingBullet}
+                  keywordInput={keywordInput}
+                  setKeywordInput={setKeywordInput}
                 />
               </div>
               
@@ -857,7 +888,7 @@ export default function CreateResume() {
           }
           
           setSections(tailoredSections);
-          setPreviewKey(prev => prev + 1);
+          setPreviewKey(previewKey + 1);
           
           console.log('Sections updated, preview key incremented');
         }}
@@ -866,8 +897,63 @@ export default function CreateResume() {
   );
 }
 
+// Save Status Indicator Component
+function SaveStatusIndicator() {
+  const { saveStatus, lastSavedAt } = useResumeStore();
+  const { user } = useAuthStore();
+
+  if (!user) return null;
+
+  const getStatusIcon = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return <Loader2 className="w-4 h-4 animate-spin text-brand-cyan" />;
+      case 'saved':
+        return <CheckCircle className="w-4 h-4 text-brand-green" />;
+      case 'error':
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusText = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return 'Saving...';
+      case 'saved':
+        return lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}` : 'Saved';
+      case 'error':
+        return 'Save failed';
+      default:
+        return 'Not saved';
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-sm text-brand-gray-text px-4 py-2 rounded-lg bg-brand-navy/30 border border-brand-purple/20">
+      {getStatusIcon()}
+      <span>{getStatusText()}</span>
+    </div>
+  );
+}
+
 // Section Editor Component
-function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate: (content: any) => void }) {
+function SectionEditor({ 
+  section, 
+  onUpdate,
+  enhancingBullet,
+  setEnhancingBullet,
+  keywordInput,
+  setKeywordInput,
+}: { 
+  section: StructuredResumeSection; 
+  onUpdate: (content: any) => void;
+  enhancingBullet: string | null;
+  setEnhancingBullet: (id: string | null) => void;
+  keywordInput: { [key: string]: string };
+  setKeywordInput: (key: string, value: string) => void;
+}) {
   if (section.type === 'personal-info') {
     return (
       <div className="space-y-6">
@@ -988,7 +1074,6 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 
   if (section.type === 'experience' || section.type === 'leadership') {
     const experiences = Array.isArray(section.content) ? section.content : [];
-    const [enhancingBullet, setEnhancingBullet] = React.useState<string | null>(null);
 
     const addExperience = () => {
       onUpdate([...experiences, { 
@@ -1607,7 +1692,6 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
   if (section.type === 'skills') {
     const skillsData = section.content || { categories: [] };
     const categories = Array.isArray(skillsData.categories) ? skillsData.categories : [];
-    const [keywordInput, setKeywordInput] = React.useState<{ [key: string]: string }>({});
 
     const addCategory = () => {
       const newCategory = { id: `cat-${Date.now()}`, name: '', keywords: [] };
@@ -1633,7 +1717,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
         cat.id === catId ? { ...cat, keywords: [...(cat.keywords || []), input] } : cat
       );
       onUpdate({ categories: updated });
-      setKeywordInput({ ...keywordInput, [catId]: '' });
+      setKeywordInput(catId, '');
     };
 
     const removeKeyword = (catId: string, keywordIdx: number) => {
@@ -1721,7 +1805,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
                     <input
                       type="text"
                       value={keywordInput[cat.id] || ''}
-                      onChange={(e) => setKeywordInput({ ...keywordInput, [cat.id]: e.target.value })}
+                      onChange={(e) => setKeywordInput(cat.id, e.target.value)}
                       onKeyPress={(e) => handleKeywordKeyPress(e, cat.id)}
                       className="flex-1 px-4 py-3 bg-brand-dark-bg text-brand-white border-2 border-brand-cyan/20 rounded-xl focus:outline-none focus:border-brand-cyan focus:shadow-lg focus:shadow-brand-cyan/20 transition-all"
                       placeholder="Type a skill and press Enter or click Add"
@@ -1754,7 +1838,7 @@ function SectionEditor({ section, onUpdate }: { section: ResumeSection; onUpdate
 }
 
 // Resume Preview Component - Matches LaTeX template styling
-function ResumePreview({ sections, templateId }: { sections: ResumeSection[]; templateId: string }) {
+function ResumePreview({ sections, templateId }: { sections: StructuredResumeSection[]; templateId: string }) {
   // Extract personal info with memoization to ensure proper updates
   const { displayName, displayContact, socialLinks } = useMemo(() => {
     const personalInfoSection = sections.find((s) => s.type === 'personal-info');

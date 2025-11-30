@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Loader2, Download, Eye } from 'lucide-react';
+import { FileText, Plus, Loader2, Download, Eye, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
@@ -153,10 +153,17 @@ export default function Dashboard() {
                       <span>{formatDate(resume.created_at)}</span>
                     </div>
                   </div>
-                  <div className="card-actions justify-end mt-4">
+                  <div className="card-actions justify-end mt-4 gap-2">
+                    <Link
+                      href={`/create?id=${resume.id}`}
+                      className="btn btn-sm btn-primary"
+                    >
+                      <Edit2 className="w-4 h-4 mr-1" />
+                      Edit
+                    </Link>
                     <Link
                       href={`/resume/${resume.id}`}
-                      className="btn btn-sm btn-primary"
+                      className="btn btn-sm btn-outline text-brand-white border-brand-cyan"
                     >
                       <Eye className="w-4 h-4 mr-1" />
                       View

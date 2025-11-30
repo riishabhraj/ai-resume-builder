@@ -31,12 +31,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email already exists
-    const { data: existing } = await supabaseAdmin
+    const { data: existing, error: checkError } = await supabaseAdmin
       .from('waitlist')
       .select('email, created_at')
       .eq('email', email.trim().toLowerCase())
       .single();
 
+    // Handle errors from the query
+    if (checkError) {
+      // PGRST116 means no rows found, which is fine - email doesn't exist
+      if (checkError.code === 'PGRST116') {
+        // Email doesn't exist, proceed with insertion
+      } else {
+        // Other errors (database connection, etc.) should be handled
+        console.error('Error checking waitlist:', checkError);
+        return NextResponse.json(
+          { error: 'Failed to check waitlist status. Please try again.' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // If email exists, return position
     if (existing) {
       // Get the position for existing email
       const { count } = await supabaseAdmin
