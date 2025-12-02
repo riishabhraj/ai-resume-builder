@@ -365,20 +365,36 @@ Return ONLY valid JSON, no additional text or markdown.`;
     console.log(`Valid tailored sections after filtering: ${validTailoredSections.length} out of ${result.tailoredSections.length}`);
 
     // Helper function to normalize experience content structure
+    // BUG FIX: Preserves all original entries, only normalizes the ones AI provided
     const normalizeExperienceContent = (content: any, originalContent: any): any => {
       if (!Array.isArray(content)) {
         // If AI didn't return an array, use original
         return originalContent;
       }
       
-      // Normalize each experience entry
-      return content.map((exp: any, idx: number) => {
-        // Find matching original experience by index or company/role
-        const originalExp = Array.isArray(originalContent) && originalContent[idx] 
-          ? originalContent[idx]
-          : Array.isArray(originalContent) && originalContent.find((oe: any) => 
-              oe.company === exp.company || oe.role === exp.role
-            ) || { id: `exp-${Date.now()}-${idx}` };
+      if (!Array.isArray(originalContent)) {
+        // If original is not an array, just normalize AI content
+        return content.map((exp: any, idx: number) => ({
+          id: exp.id || `exp-${Date.now()}-${idx}`,
+          company: exp.company || '',
+          role: exp.role || '',
+          additionalRole: exp.additionalRole || '',
+          location: exp.location || '',
+          startDate: exp.startDate || '',
+          endDate: exp.endDate || '',
+          bullets: Array.isArray(exp.bullets) ? exp.bullets : []
+        }));
+      }
+      
+      // Map AI experiences to normalized format
+      const normalizedAiExperiences = content.map((exp: any, idx: number) => {
+        // Find matching original experience by index, company/role, or ID
+        const originalExp = originalContent[idx] || 
+          originalContent.find((oe: any) => 
+            (oe.company && exp.company && oe.company === exp.company) ||
+            (oe.role && exp.role && oe.role === exp.role) ||
+            (oe.id && exp.id && oe.id === exp.id)
+          ) || { id: `exp-${Date.now()}-${idx}` };
         
         // Ensure bullets have proper structure (id and text)
         let normalizedBullets = [];
@@ -390,7 +406,7 @@ Return ONLY valid JSON, no additional text or markdown.`;
                 id: `bullet-${Date.now()}-${idx}-${bulletIdx}`,
                 text: bullet
               };
-            } else if (bullet.text) {
+            } else if (bullet && typeof bullet === 'object' && bullet.text) {
               // Ensure it has an id
               return {
                 id: bullet.id || `bullet-${Date.now()}-${idx}-${bulletIdx}`,
@@ -418,6 +434,20 @@ Return ONLY valid JSON, no additional text or markdown.`;
           bullets: normalizedBullets
         };
       });
+      
+      // BUG FIX: Preserve original entries that weren't in AI response
+      // Track which original entries were matched by AI
+      const matchedOriginalIds = new Set(
+        normalizedAiExperiences.map((exp: any) => exp.id)
+      );
+      
+      // Add original entries that weren't matched
+      const preservedOriginalExperiences = originalContent
+        .filter((origExp: any) => !matchedOriginalIds.has(origExp.id))
+        .map((origExp: any) => origExp); // Keep original structure
+      
+      // Combine normalized AI experiences with preserved originals
+      return [...normalizedAiExperiences, ...preservedOriginalExperiences];
     };
 
     // Merge AI's tailored sections with original sections

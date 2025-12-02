@@ -156,8 +156,17 @@ ${escapeLatex(summaryText)}\\\\[0.2em]`;
             if (exp.bullets && exp.bullets.length > 0) {
               experiences += '\n\\begin{itemize}\n';
               exp.bullets.forEach((bullet) => {
-                if (bullet.text.trim()) {
-                  experiences += `  \\item ${escapeLatex(bullet.text)}\n`;
+                // BUG FIX: Validate bullet structure before accessing properties
+                let bulletText: string | null = null;
+                
+                if (typeof bullet === 'string') {
+                  bulletText = bullet;
+                } else if (bullet && typeof bullet === 'object' && bullet.text && typeof bullet.text === 'string') {
+                  bulletText = bullet.text;
+                }
+                
+                if (bulletText && bulletText.trim()) {
+                  experiences += `  \\item ${escapeLatex(bulletText.trim())}\n`;
                 }
               });
               experiences += '\\end{itemize}';
@@ -193,8 +202,17 @@ ${escapeLatex(summaryText)}\\\\[0.2em]`;
             if (exp.bullets && exp.bullets.length > 0) {
               experiences += '\n\\begin{itemize}\n';
               exp.bullets.forEach((bullet) => {
-                if (bullet.text.trim()) {
-                  experiences += `  \\item ${escapeLatex(bullet.text)}\n`;
+                // BUG FIX: Validate bullet structure before accessing properties
+                let bulletText: string | null = null;
+                
+                if (typeof bullet === 'string') {
+                  bulletText = bullet;
+                } else if (bullet && typeof bullet === 'object' && bullet.text && typeof bullet.text === 'string') {
+                  bulletText = bullet.text;
+                }
+                
+                if (bulletText && bulletText.trim()) {
+                  experiences += `  \\item ${escapeLatex(bulletText.trim())}\n`;
                 }
               });
               experiences += '\\end{itemize}';
@@ -258,8 +276,17 @@ ${escapeLatex(summaryText)}\\\\[0.2em]`;
             // Also handle bulletPoints if they exist (for backward compatibility)
             if (proj.bulletPoints && proj.bulletPoints.length > 0) {
               proj.bulletPoints.forEach((bullet) => {
-                if (bullet.text.trim()) {
-                  experiences += `  \\item ${escapeLatex(bullet.text)}\n`;
+                // BUG FIX: Validate bullet structure before accessing properties
+                let bulletText: string | null = null;
+                
+                if (typeof bullet === 'string') {
+                  bulletText = bullet;
+                } else if (bullet && typeof bullet === 'object' && bullet.text && typeof bullet.text === 'string') {
+                  bulletText = bullet.text;
+                }
+                
+                if (bulletText && bulletText.trim()) {
+                  experiences += `  \\item ${escapeLatex(bulletText.trim())}\n`;
                 }
               });
             }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/server';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import { calculateATSScore } from '@/lib/ats-scorer';
 import { getLatexTemplate, populateLatexTemplate, formatExperiencesForLatex, formatExperiencesFromFormData, escapeLatex } from '@/lib/latex-utils';
 import type { ResumeFormData, GeneratedResume, ExperienceItem, ResumeSection } from '@/lib/types';
@@ -210,65 +209,60 @@ export async function POST(request: NextRequest) {
       education: educationText,
     });
 
-    // ===== AUTHENTICATION & DATABASE DISABLED FOR TESTING =====
-    // TODO: Re-enable when Supabase is configured
-    /*
+    // Get authenticated user
+    const supabase = await createClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+
     const {
       data: { user },
-    } = await supabaseAdmin.auth.getUser(request.headers.get('Authorization')?.split(' ')[1] || '');
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    let userId = user?.id;
-    if (!userId) {
-      const authHeader = request.headers.get('cookie');
-      if (authHeader) {
-        const {
-          data: { user: cookieUser },
-        } = await supabaseAdmin.auth.getUser();
-        userId = cookieUser?.id;
-      }
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: resume, error } = await supabaseAdmin
+    // Save resume to database
+    const { data: resume, error } = await supabase
       .from('resume_versions')
       .insert({
-        user_id: userId,
-        title: generatedResume.title,
+        user_id: user.id,
+        title: generatedResume.title || 'Generated Resume',
         plain_text: generatedResume.plain_text_resume,
         latex_source: latexSource,
         ats_score: atsScore,
         status: 'draft',
-        template_id: templateId,
+        template_id: templateId || null,
+        sections_data: generatedResume.sections || null,
       })
       .select()
       .single();
 
     if (error) {
       console.error('Database error:', error);
-      return NextResponse.json({ error: 'Failed to save resume' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to save resume', details: error.message },
+        { status: 500 }
+      );
     }
+
+    console.log('✅ Resume generated and saved successfully');
+    console.log('Resume ID:', resume.id);
+    console.log('ATS Score:', atsScore);
 
     return NextResponse.json({
       resumeId: resume.id,
       sections: generatedResume.sections,
       atsScore,
-    });
-    */
-
-    // Temporary mock response for testing without database
-    console.log('✅ Resume generated successfully (testing mode)');
-    console.log('LaTeX source length:', latexSource.length);
-    console.log('ATS Score:', atsScore);
-    
-    return NextResponse.json({
-      resumeId: 'test-' + Date.now(), // Mock ID for testing
-      sections: generatedResume.sections,
-      atsScore,
-      latexSource, // Include latex source in response for testing
-      message: 'Resume generated (testing mode - database disabled)',
     });
   } catch (error) {
     console.error('Error generating resume:', error);
