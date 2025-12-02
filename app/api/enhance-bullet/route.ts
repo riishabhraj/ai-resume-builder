@@ -35,10 +35,28 @@ export async function POST(request: NextRequest) {
 
     // Randomly select a verb to suggest variety (but AI can choose a different one if more appropriate)
     const suggestedVerb = ACTION_VERBS[Math.floor(Math.random() * ACTION_VERBS.length)];
-    const alternativeVerbs = [
-      ACTION_VERBS[Math.floor(Math.random() * ACTION_VERBS.length)],
-      ACTION_VERBS[Math.floor(Math.random() * ACTION_VERBS.length)]
-    ].filter(v => v !== suggestedVerb).slice(0, 2);
+    
+    // Get alternative verbs, ensuring we always have at least 2 valid options
+    // Filter out the suggested verb and ensure we have unique alternatives
+    const availableVerbs = ACTION_VERBS.filter(v => v !== suggestedVerb);
+    let alternativeVerbs: string[] = [];
+    
+    if (availableVerbs.length >= 2) {
+      // Shuffle and pick 2 unique alternatives
+      const shuffled = [...availableVerbs].sort(() => Math.random() - 0.5);
+      alternativeVerbs = shuffled.slice(0, 2);
+    } else if (availableVerbs.length === 1) {
+      // If only one alternative, use it twice (better than undefined)
+      alternativeVerbs = [availableVerbs[0], availableVerbs[0]];
+    } else {
+      // Fallback: use different verbs from the full list if somehow all match
+      const shuffled = [...ACTION_VERBS].sort(() => Math.random() - 0.5);
+      alternativeVerbs = shuffled.filter(v => v !== suggestedVerb).slice(0, 2);
+      // If still empty, use any two verbs as last resort
+      if (alternativeVerbs.length < 2) {
+        alternativeVerbs = shuffled.slice(0, 2);
+      }
+    }
 
     // Create context-aware prompt
     const contextInfo = role && company ? `for a ${role} at ${company}` : '';

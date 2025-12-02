@@ -5,6 +5,7 @@ import type { StructuredResumeSection, SectionType } from '@/lib/types';
 interface ResumeState {
   // Resume data
   resumeId: string | null;
+  title: string | null;
   sections: StructuredResumeSection[];
   selectedTemplate: string;
   
@@ -27,6 +28,7 @@ interface ResumeState {
   
   // Actions
   setResumeId: (id: string | null) => void;
+  setTitle: (title: string | null) => void;
   setSections: (sections: StructuredResumeSection[]) => void;
   addSection: (section: StructuredResumeSection) => void;
   updateSection: (id: string, content: any) => void;
@@ -45,6 +47,7 @@ interface ResumeState {
   resetResume: () => void;
   loadResume: (resume: {
     id: string;
+    title?: string | null;
     sections: StructuredResumeSection[];
     template_id?: string | null;
   }) => void;
@@ -70,6 +73,7 @@ const getDefaultPersonalInfo = (): StructuredResumeSection => ({
 
 const initialState = {
   resumeId: null,
+  title: null,
   sections: [getDefaultPersonalInfo()],
   selectedTemplate: 'professional',
   showAddSection: false,
@@ -91,6 +95,7 @@ export const useResumeStore = create<ResumeState>()(
       ...initialState,
 
       setResumeId: (id) => set({ resumeId: id }),
+      setTitle: (title) => set({ title }),
       
       setSections: (sections) => set({ sections }),
       
@@ -170,6 +175,7 @@ export const useResumeStore = create<ResumeState>()(
       loadResume: (resume) => {
         set({
           resumeId: resume.id,
+          title: resume.title || null,
           sections: resume.sections || [getDefaultPersonalInfo()],
           selectedTemplate: resume.template_id || 'professional',
         });
@@ -183,6 +189,7 @@ export const useResumeStore = create<ResumeState>()(
       partialize: (state) => ({
         // Only persist essential data, not UI state
         resumeId: state.resumeId,
+        title: state.title,
         sections: state.sections,
         selectedTemplate: state.selectedTemplate,
       }),

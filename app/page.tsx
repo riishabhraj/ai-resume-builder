@@ -8,20 +8,35 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import WaitlistForm from '@/components/WaitlistForm';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function Home() {
   const router = useRouter();
+  const { user, initialized, initialize } = useAuthStore();
+  
+  // Initialize auth
+  useEffect(() => {
+    if (!initialized) {
+      initialize();
+    }
+  }, [initialized, initialize]);
   
   // Check if we should redirect to waitlist
   useEffect(() => {
     if (shouldRedirectToWaitlist()) {
       router.push('/waitlist');
+      return;
     }
-  }, [router]);
+    
+    // Redirect authenticated users to dashboard
+    if (initialized && user) {
+      router.push('/dashboard');
+    }
+  }, [router, initialized, user]);
   
   return (
     <>
-    <div className="min-h-screen animated-gradient aurora" data-theme="atsbuilder">
+    <div className="min-h-screen animated-gradient aurora" data-theme="atsbuilder" suppressHydrationWarning>
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex justify-between items-center">
@@ -31,7 +46,7 @@ export default function Home() {
               </div>
               <span className="text-2xl font-bold gradient-text">ResuCraft</span>
             </div>
-            <Link href="/create" className="group px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple border border-brand-purple-light/20">
+            <Link href="/sign-in?redirect=/dashboard" className="group px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple border border-brand-purple-light/20">
               <span className="flex items-center">
                 Get Started
                 <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
@@ -71,7 +86,7 @@ export default function Home() {
               
               <div className="flex flex-col sm:flex-row gap-5 justify-center">
                 <Link
-                  href="/create"
+                  href="/sign-in?redirect=/dashboard"
                   className="group px-10 py-5 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-2xl glow-purple border border-brand-purple/20"
                 >
                   <span className="flex items-center justify-center">
@@ -330,7 +345,7 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
-              <Link href="/create" className="group px-12 py-6 rounded-2xl font-black text-xl text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-110 transition-all duration-300 shadow-2xl glow-pink border border-brand-pink/20">
+              <Link href="/sign-in?redirect=/dashboard" className="group px-12 py-6 rounded-2xl font-black text-xl text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-110 transition-all duration-300 shadow-2xl glow-pink border border-brand-pink/20">
                 <span className="flex items-center">
                   Create Your Resume Now
                   <span className="ml-3 text-2xl group-hover:translate-x-2 transition-transform">🚀</span>

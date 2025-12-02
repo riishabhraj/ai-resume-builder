@@ -17,9 +17,15 @@ export async function getServerSession(): Promise<{
   }
 
   try {
-    const {
-      data: { user, session },
-    } = await client.auth.getUser();
+    // getUser() only returns user, not session
+    // We need to call getSession() to get the session
+    const [
+      { data: { user } },
+      { data: { session } }
+    ] = await Promise.all([
+      client.auth.getUser(),
+      client.auth.getSession()
+    ]);
 
     return { user, session };
   } catch (error) {
@@ -41,9 +47,15 @@ export async function getClientSession(): Promise<{
   }
 
   try {
-    const {
-      data: { user, session },
-    } = await supabase.auth.getUser();
+    // getUser() only returns user, not session
+    // We need to call getSession() to get the session
+    const [
+      { data: { user } },
+      { data: { session } }
+    ] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.auth.getSession()
+    ]);
 
     return { user, session };
   } catch (error) {

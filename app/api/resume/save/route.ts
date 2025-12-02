@@ -137,6 +137,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    // Ignore connection reset errors (happen when client aborts request)
+    if (error instanceof Error && (error.message.includes('aborted') || error.message.includes('ECONNRESET'))) {
+      // Request was aborted, return early without logging
+      return new NextResponse(null, { status: 499 }); // 499 = Client Closed Request
+    }
+    
     console.error('Save resume error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred', details: error instanceof Error ? error.message : 'Unknown error' },

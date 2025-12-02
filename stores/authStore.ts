@@ -33,6 +33,12 @@ export const useAuthStore = create<AuthState>()(
       initialize: async () => {
         if (get().initialized) return;
         
+        // Only run on client side
+        if (typeof window === 'undefined') {
+          set({ loading: false, initialized: true });
+          return;
+        }
+        
         set({ loading: true });
         
         try {
@@ -41,10 +47,16 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
 
-          // Get initial session
-          const {
-            data: { user, session },
-          } = await supabase.auth.getUser();
+          // Get initial user and session
+          // getUser() only returns user, not session
+          // We need to call getSession() to get the session
+          const [
+            { data: { user } },
+            { data: { session } }
+          ] = await Promise.all([
+            supabase.auth.getUser(),
+            supabase.auth.getSession()
+          ]);
 
           set({ user, session, loading: false, initialized: true });
 
@@ -77,9 +89,15 @@ export const useAuthStore = create<AuthState>()(
         try {
           if (!supabase) return;
 
-          const {
-            data: { user, session },
-          } = await supabase.auth.getUser();
+          // getUser() only returns user, not session
+          // We need to call getSession() to get the session
+          const [
+            { data: { user } },
+            { data: { session } }
+          ] = await Promise.all([
+            supabase.auth.getUser(),
+            supabase.auth.getSession()
+          ]);
 
           set({ user, session });
         } catch (error) {

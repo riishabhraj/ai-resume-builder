@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FileText, Download, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { FileText, Download, Loader2, CheckCircle, AlertCircle, Edit2, BarChart3 } from 'lucide-react';
 import { getATSRecommendations } from '@/lib/ats-scorer';
-import type { ResumeVersion } from '@/lib/types';
+import type { ResumeVersion, ResumeAnalysis, StructuredResumeSection } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 export default function ResumePage() {
@@ -18,6 +17,8 @@ export default function ResumePage() {
   const [loading, setLoading] = useState(true);
   const [compiling, setCompiling] = useState(false);
   const [recommendations, setRecommendations] = useState<string[]>([]);
+  const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
+  const [loadingAnalyses, setLoadingAnalyses] = useState(false);
 
   // Check if we should redirect to waitlist
   useEffect(() => {
@@ -28,34 +29,45 @@ export default function ResumePage() {
 
   useEffect(() => {
     loadResume();
+    loadAnalyses();
   }, [resumeId]);
 
   async function loadResume() {
     try {
-      if (!supabase) {
-        console.error('Supabase not configured');
-        setLoading(false);
-        return;
-      }
+      const response = await fetch(`/api/resume/${resumeId}`);
+      if (!response.ok) throw new Error('Failed to load resume');
 
-      const { data, error } = await supabase
-        .from('resume_versions')
-        .select('*')
-        .eq('id', resumeId)
-        .single();
-
-      if (error) throw error;
-
-      setResume(data);
-      if (data.plain_text) {
-        const recs = getATSRecommendations(data.ats_score || 0, data.plain_text);
-        setRecommendations(recs);
+      const data = await response.json();
+      if (data.success && data.resume) {
+        setResume(data.resume);
+        // Generate recommendations if we have plain_text or sections
+        if (data.resume.plain_text) {
+          const recs = getATSRecommendations(data.resume.ats_score || 0, data.resume.plain_text);
+          setRecommendations(recs);
+        }
       }
     } catch (error) {
       console.error('Error loading resume:', error);
       alert('Failed to load resume');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAnalyses() {
+    setLoadingAnalyses(true);
+    try {
+      const response = await fetch(`/api/resume/${resumeId}/analyses`);
+      if (!response.ok) throw new Error('Failed to load analyses');
+
+      const data = await response.json();
+      if (data.success) {
+        setAnalyses(data.analyses || []);
+      }
+    } catch (error) {
+      console.error('Error loading analyses:', error);
+    } finally {
+      setLoadingAnalyses(false);
     }
   }
 
@@ -157,12 +169,25 @@ export default function ResumePage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="card bg-brand-navy shadow-xl">
               <div className="card-body">
-                <h1 className="card-title text-3xl text-brand-white mb-4">{resume.title}</h1>
-                <div className="prose prose-invert max-w-none">
-                  <div className="whitespace-pre-wrap text-brand-gray font-mono text-sm bg-brand-black p-4 rounded-lg">
-                    {resume.plain_text}
-                  </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="card-title text-3xl text-brand-white">{resume.title}</h1>
+                  <Link 
+                    href={`/create?id=${resume.id}`}
+                    className="btn btn-sm btn-primary"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit
+                  </Link>
                 </div>
+                {resume.sections_data && resume.sections_data.length > 0 ? (
+                  <ResumeSectionsDisplay sections={resume.sections_data} />
+                ) : (
+                  <div className="prose prose-invert max-w-none">
+                    <div className="whitespace-pre-wrap text-brand-gray font-mono text-sm bg-brand-black p-4 rounded-lg">
+                      {resume.plain_text || 'No content available'}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -236,6 +261,13 @@ export default function ResumePage() {
                       Download PDF
                     </button>
                   )}
+                  <Link 
+                    href={`/create?id=${resume.id}`}
+                    className="btn btn-outline w-full text-brand-white border-brand-cyan"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Resume
+                  </Link>
                   <Link href="/create" className="btn btn-outline w-full text-brand-white border-brand-cyan">
                     Create New Version
                   </Link>
@@ -252,22 +284,141 @@ export default function ResumePage() {
             <div className="card bg-brand-navy shadow-xl">
               <div className="card-body">
                 <h2 className="card-title text-brand-white mb-4">
+                  <BarChart3 className="w-5 h-5 text-brand-cyan" />
+                  Analysis History
+                </h2>
+                {loadingAnalyses ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-brand-cyan" />
+                  </div>
+                ) : analyses.length === 0 ? (
+                  <p className="text-brand-gray text-sm">No analyses yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {analyses.map((analysis) => (
+                      <div key={analysis.id} className="bg-brand-black p-4 rounded-lg border border-brand-cyan/20">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <span className="badge badge-primary badge-sm mr-2">
+                              {analysis.analysis_type}
+                            </span>
+                            {analysis.ats_score !== null && (
+                              <span className="text-brand-cyan font-bold">
+                                Score: {analysis.ats_score}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-brand-gray text-xs">
+                            {new Date(analysis.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {analysis.job_description && (
+                          <p className="text-brand-gray text-xs mt-2 line-clamp-2">
+                            Job: {analysis.job_description.substring(0, 100)}...
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card bg-brand-navy shadow-xl">
+              <div className="card-body">
+                <h2 className="card-title text-brand-white mb-4">
                   <AlertCircle className="w-5 h-5 text-brand-cyan" />
                   Recommendations
                 </h2>
                 <ul className="space-y-3">
-                  {recommendations.map((rec, idx) => (
-                    <li key={idx} className="text-brand-gray text-sm flex items-start">
-                      <span className="text-brand-cyan mr-2">•</span>
-                      <span>{rec}</span>
-                    </li>
-                  ))}
+                  {recommendations.length === 0 ? (
+                    <li className="text-brand-gray text-sm">No recommendations available</li>
+                  ) : (
+                    recommendations.map((rec, idx) => (
+                      <li key={idx} className="text-brand-gray text-sm flex items-start">
+                        <span className="text-brand-cyan mr-2">•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))
+                  )}
                 </ul>
               </div>
             </div>
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+// Component to display structured resume sections
+function ResumeSectionsDisplay({ sections }: { sections: StructuredResumeSection[] }) {
+  return (
+    <div className="space-y-6">
+      {sections.map((section) => (
+        <div key={section.id} className="border-b border-brand-cyan/20 pb-4 last:border-0">
+          <h3 className="text-xl font-bold text-brand-white mb-3">{section.title}</h3>
+          {section.type === 'personal-info' && (
+            <div className="text-brand-gray space-y-1">
+              {section.content.fullName && <p className="font-semibold text-brand-white">{section.content.fullName}</p>}
+              {section.content.title && <p>{section.content.title}</p>}
+              {section.content.email && <p>{section.content.email}</p>}
+              {section.content.phone && <p>{section.content.phone}</p>}
+              {section.content.location && <p>{section.content.location}</p>}
+            </div>
+          )}
+          {section.type === 'professional-summary' || section.type === 'career-objective' ? (
+            <p className="text-brand-gray">{section.content.text}</p>
+          ) : section.type === 'experience' || section.type === 'leadership' ? (
+            <div className="space-y-4">
+              {Array.isArray(section.content) && section.content.map((exp: any) => (
+                <div key={exp.id} className="bg-brand-black/50 p-3 rounded">
+                  <div className="font-semibold text-brand-white">{exp.role} {exp.additionalRole && `- ${exp.additionalRole}`}</div>
+                  <div className="text-brand-cyan">{exp.company}</div>
+                  <div className="text-brand-gray text-sm">{exp.location} • {exp.startDate} - {exp.endDate || 'Present'}</div>
+                  {exp.bullets && exp.bullets.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {exp.bullets.map((bullet: any) => (
+                        <li key={bullet.id} className="text-brand-gray text-sm">• {bullet.text}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : section.type === 'education' ? (
+            <div className="space-y-3">
+              {Array.isArray(section.content) && section.content.map((edu: any) => (
+                <div key={edu.id} className="bg-brand-black/50 p-3 rounded">
+                  <div className="font-semibold text-brand-white">{edu.degree} in {edu.field}</div>
+                  <div className="text-brand-cyan">{edu.institution}</div>
+                  <div className="text-brand-gray text-sm">{edu.startDate} - {edu.endDate || 'Present'}</div>
+                  {edu.gpa && <div className="text-brand-gray text-sm">GPA: {edu.gpa}</div>}
+                </div>
+              ))}
+            </div>
+          ) : section.type === 'skills' ? (
+            <div className="space-y-3">
+              {section.content.categories && Array.isArray(section.content.categories) && section.content.categories.map((cat: any) => (
+                <div key={cat.id}>
+                  <div className="font-semibold text-brand-white mb-2">{cat.name}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {cat.keywords && cat.keywords.map((keyword: string, idx: number) => (
+                      <span key={idx} className="px-2 py-1 bg-brand-cyan/20 text-brand-cyan rounded text-sm">
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-brand-gray text-sm">
+              {JSON.stringify(section.content, null, 2)}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

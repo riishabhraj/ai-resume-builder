@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { Mail, Loader2, AlertCircle, CheckCircle, FileText } from 'lucide-react';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -19,8 +19,8 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Check if we have a token (user clicked reset link)
-  const token = searchParams.get('token');
-  const type = searchParams.get('type');
+  const token = searchParams?.get('token') || null;
+  const type = searchParams?.get('type') || null;
 
   useEffect(() => {
     // Check waitlist mode (only if not resetting password)
@@ -296,5 +296,17 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen animated-gradient aurora flex items-center justify-center" data-theme="atsbuilder">
+        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { Mail, Lock, Loader2, AlertCircle, FileText } from 'lucide-react';
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, initialize } = useAuthStore();
@@ -29,7 +29,7 @@ export default function SignInPage() {
 
     // Redirect if already authenticated
     if (user) {
-      const redirect = searchParams.get('redirect') || '/dashboard';
+      const redirect = searchParams?.get('redirect') || '/dashboard';
       router.push(redirect);
     }
   }, [user, router, searchParams]);
@@ -61,7 +61,7 @@ export default function SignInPage() {
       await initialize();
 
       // Redirect to the page they were trying to access, or dashboard
-      const redirect = searchParams.get('redirect') || '/dashboard';
+      const redirect = searchParams?.get('redirect') || '/dashboard';
       router.push(redirect);
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
@@ -79,7 +79,7 @@ export default function SignInPage() {
         throw new Error('Supabase not configured');
       }
 
-      const redirectTo = searchParams.get('redirect') || '/dashboard';
+      const redirectTo = searchParams?.get('redirect') || '/dashboard';
       const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`;
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -246,5 +246,17 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen animated-gradient aurora flex items-center justify-center" data-theme="atsbuilder">
+        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

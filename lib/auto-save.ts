@@ -5,9 +5,10 @@ import { useAuthStore } from '@/stores/authStore';
 const DEBOUNCE_DELAY = 2000; // 2 seconds
 
 export function useAutoSave() {
-  const { sections, selectedTemplate, resumeId, setResumeId, setSaveStatus, setLastSavedAt } = useResumeStore();
+  const { sections, selectedTemplate, resumeId, title, setResumeId, setSaveStatus, setLastSavedAt } = useResumeStore();
   const { user } = useAuthStore();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const saveResume = useCallback(async () => {
     if (!user) {
@@ -20,6 +21,15 @@ export function useAutoSave() {
       return;
     }
 
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setSaveStatus('saving');
 
     try {
@@ -29,15 +39,27 @@ export function useAutoSave() {
         body: JSON.stringify({
           sections,
           templateId: selectedTemplate,
+          title: title || undefined,
           resumeId: resumeId || undefined,
         }),
+        signal: abortController.signal,
       });
+
+      // Check if request was aborted
+      if (abortController.signal.aborted) {
+        return; // Silently return, don't update status
+      }
 
       if (!response.ok) {
         throw new Error('Failed to save resume');
       }
 
       const data = await response.json();
+      
+      // Check again if aborted after response
+      if (abortController.signal.aborted) {
+        return;
+      }
       
       // Update resume ID if it's a new resume
       if (!resumeId && data.resumeId) {
@@ -51,7 +73,12 @@ export function useAutoSave() {
       setTimeout(() => {
         setSaveStatus('idle');
       }, 3000);
-    } catch (error) {
+    } catch (error: any) {
+      // Ignore abort errors - they're expected when cancelling previous requests
+      if (error.name === 'AbortError' || error.code === 'ECONNRESET' || error.message?.includes('aborted')) {
+        return; // Silently return, don't log or show error
+      }
+
       console.error('Auto-save error:', error);
       setSaveStatus('error');
       
@@ -60,7 +87,7 @@ export function useAutoSave() {
         setSaveStatus('idle');
       }, 5000);
     }
-  }, [user, sections, selectedTemplate, resumeId, setResumeId, setSaveStatus, setLastSavedAt]);
+  }, [user, sections, selectedTemplate, title, resumeId, setResumeId, setSaveStatus, setLastSavedAt]);
 
   const triggerAutoSave = useCallback(() => {
     // Clear existing timeout

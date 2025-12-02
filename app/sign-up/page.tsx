@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { Mail, Lock, User, Loader2, AlertCircle, FileText } from 'lucide-react';
 
-export default function SignUpPage() {
+function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, initialize } = useAuthStore();
@@ -32,7 +32,7 @@ export default function SignUpPage() {
 
     // Redirect if already authenticated
     if (user) {
-      const redirect = searchParams.get('redirect') || '/dashboard';
+      const redirect = searchParams?.get('redirect') || '/dashboard';
       router.push(redirect);
     }
   }, [user, router, searchParams]);
@@ -101,7 +101,7 @@ export default function SignUpPage() {
 
         // Redirect after a short delay
         setTimeout(() => {
-          const redirect = searchParams.get('redirect') || '/dashboard';
+          const redirect = searchParams?.get('redirect') || '/dashboard';
           router.push(redirect);
         }, 2000);
       }
@@ -121,7 +121,7 @@ export default function SignUpPage() {
         throw new Error('Supabase not configured');
       }
 
-      const redirectTo = searchParams.get('redirect') || '/dashboard';
+      const redirectTo = searchParams?.get('redirect') || '/dashboard';
       const redirectUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`;
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -328,5 +328,17 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen animated-gradient aurora flex items-center justify-center" data-theme="atsbuilder">
+        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
   );
 }

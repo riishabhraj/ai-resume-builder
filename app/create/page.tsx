@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target, GripVertical, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target, GripVertical, CheckCircle, AlertCircle, Save, Copy } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -100,63 +100,79 @@ const SECTION_TEMPLATES = [
   },
 ];
 
-export default function CreateResume() {
+function CreateResumeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resumeIdFromUrl = searchParams?.get('id') || null;
   
-  // Check if we should redirect to waitlist
-  useEffect(() => {
-    if (shouldRedirectToWaitlist()) {
-      router.push('/waitlist');
-    }
-  }, [router]);
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // This ensures hooks are called in the same order on every render
   
-  // Zustand store for resume state
-  const {
-    sections,
-    selectedTemplate,
-    showAddSection,
-    editingSection,
-    previewKey,
-    exportHtml,
-    showTailorModal,
-    importingPdf,
-    pageBreaks,
-    enhancingBullet,
-    keywordInput,
-    resumeId,
-    setSections,
-    setSelectedTemplate,
-    setShowAddSection,
-    setEditingSection,
-    setPreviewKey,
-    setExportHtml,
-    setShowTailorModal,
-    setImportingPdf,
-    setPageBreaks,
-    setEnhancingBullet,
-    setKeywordInput,
-    addSection,
-    updateSection,
-    removeSection,
-    reorderSections,
-    setResumeId,
-    loadResume,
-    resetResume,
-  } = useResumeStore();
+  const [isMounted, setIsMounted] = useState(false);
   
-  const { user, initialized } = useAuthStore();
-  const { triggerAutoSave } = useAutoSave();
+  // Access stores - Zustand will handle hydration automatically
+  const resumeStore = useResumeStore();
+  const authStore = useAuthStore();
+  
+  // Destructure store values
+  const sections = resumeStore.sections;
+  const selectedTemplate = resumeStore.selectedTemplate;
+  const showAddSection = resumeStore.showAddSection;
+  const editingSection = resumeStore.editingSection;
+  const previewKey = resumeStore.previewKey;
+  const exportHtml = resumeStore.exportHtml;
+  const showTailorModal = resumeStore.showTailorModal;
+  const importingPdf = resumeStore.importingPdf;
+  const pageBreaks = resumeStore.pageBreaks;
+  const enhancingBullet = resumeStore.enhancingBullet;
+  const keywordInput = resumeStore.keywordInput;
+  const resumeId = resumeStore.resumeId;
+  const title = resumeStore.title;
+  const setSections = resumeStore.setSections;
+  const setTitle = resumeStore.setTitle;
+  const setSelectedTemplate = resumeStore.setSelectedTemplate;
+  const setShowAddSection = resumeStore.setShowAddSection;
+  const setEditingSection = resumeStore.setEditingSection;
+  const setPreviewKey = resumeStore.setPreviewKey;
+  const setExportHtml = resumeStore.setExportHtml;
+  const setShowTailorModal = resumeStore.setShowTailorModal;
+  const setImportingPdf = resumeStore.setImportingPdf;
+  const setPageBreaks = resumeStore.setPageBreaks;
+  const setEnhancingBullet = resumeStore.setEnhancingBullet;
+  const setKeywordInput = resumeStore.setKeywordInput;
+  const addSection = resumeStore.addSection;
+  const updateSection = resumeStore.updateSection;
+  const removeSection = resumeStore.removeSection;
+  const reorderSections = resumeStore.reorderSections;
+  const setResumeId = resumeStore.setResumeId;
+  const loadResume = resumeStore.loadResume;
+  const resetResume = resumeStore.resetResume;
+  
+  const user = authStore.user;
+  const initialized = authStore.initialized;
+  const { triggerAutoSave, saveResume } = useAutoSave();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   const [step, setStep] = useState<'template' | 'editor'>('editor'); // Skip template selection, go directly to editor
   const [loadingResume, setLoadingResume] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
+  // Track if we've loaded the resume to prevent infinite loops
+  const hasLoadedResumeRef = useRef(false);
+  const lastResumeIdRef = useRef<string | null>(null);
+  
   // Load resume from URL if provided
   const loadResumeFromApi = useCallback(async (id: string) => {
+    // Prevent loading the same resume twice
+    if (hasLoadedResumeRef.current && lastResumeIdRef.current === id) {
+      return;
+    }
+
     setLoadingResume(true);
+    hasLoadedResumeRef.current = true;
+    lastResumeIdRef.current = id;
+
     try {
       const response = await fetch(`/api/resume/${id}`);
       if (!response.ok) throw new Error('Failed to load resume');
@@ -165,6 +181,7 @@ export default function CreateResume() {
       if (data.success && data.resume) {
         loadResume({
           id: data.resume.id,
+          title: data.resume.title || null,
           sections: data.resume.sections || [],
           template_id: data.resume.template_id,
         });
@@ -175,29 +192,62 @@ export default function CreateResume() {
       alert('Failed to load resume. Creating new one.');
       setResumeId(null);
       resetResume();
+      hasLoadedResumeRef.current = false;
+      lastResumeIdRef.current = null;
     } finally {
       setLoadingResume(false);
     }
   }, [loadResume, setResumeId, resetResume]);
 
-  useEffect(() => {
-    if (resumeIdFromUrl && initialized && user && !loadingResume) {
-      loadResumeFromApi(resumeIdFromUrl);
-    } else if (!resumeIdFromUrl && resumeId) {
-      // If no URL param but we have a resumeId in store, clear it (new resume)
-      setResumeId(null);
-      resetResume();
-    }
-  }, [resumeIdFromUrl, initialized, user, loadingResume, resumeId, setResumeId, resetResume, loadResumeFromApi]);
+  // Reset unsaved changes when save is successful
+  const saveStatus = useResumeStore((state) => state.saveStatus);
 
-  // Auto-save on sections change
+  // Ensure component only renders fully on client side
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  // Check if we should redirect to waitlist
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
+
+  // Load resume when URL param changes - using refs to prevent infinite loops
+  useEffect(() => {
+    if (!isMounted || !initialized) return;
+    
+    // Only load if we have a URL param and haven't loaded it yet
+    if (resumeIdFromUrl && user && !loadingResume) {
+      if (resumeIdFromUrl !== lastResumeIdRef.current) {
+        loadResumeFromApi(resumeIdFromUrl);
+      }
+    } else if (!resumeIdFromUrl && hasLoadedResumeRef.current) {
+      // Reset refs when URL param is removed (new resume)
+      // Don't clear the store here - let the user create a new resume naturally
+      hasLoadedResumeRef.current = false;
+      lastResumeIdRef.current = null;
+    }
+    // Only depend on resumeIdFromUrl, initialized, user, and isMounted
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeIdFromUrl, initialized, user, isMounted]);
+
+  // Track unsaved changes and auto-save
   useEffect(() => {
     if (initialized && user && sections.length > 0 && !loadingResume) {
+      setHasUnsavedChanges(true);
       triggerAutoSave();
     }
-  }, [sections, selectedTemplate, initialized, user, triggerAutoSave, loadingResume]);
+  }, [sections, selectedTemplate, title, initialized, user, triggerAutoSave, loadingResume]);
 
-  // Drag and drop sensors
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      setHasUnsavedChanges(false);
+    }
+  }, [saveStatus]);
+
+  // Drag and drop sensors - MUST be called before conditional return
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -205,7 +255,7 @@ export default function CreateResume() {
     })
   );
 
-  // Compute available sections (filter out already added ones)
+  // Compute available sections (filter out already added ones) - MUST be called before conditional return
   const availableSections = useMemo(() => {
     // Get all section types that are already added
     const addedSectionTypes = new Set(sections.map(s => s.type));
@@ -215,9 +265,11 @@ export default function CreateResume() {
   }, [sections]);
 
   // Force preview re-render when sections change
+  const previewKeyRef = useRef(0);
   useEffect(() => {
-    setPreviewKey(previewKey + 1);
-  }, [sections, previewKey, setPreviewKey]);
+    previewKeyRef.current += 1;
+    setPreviewKey(previewKeyRef.current);
+  }, [sections, setPreviewKey]);
 
   // Calculate page breaks for visual indicators
   useEffect(() => {
@@ -261,6 +313,60 @@ export default function CreateResume() {
 
     return () => clearTimeout(timeout);
   }, [sections, previewKey]);
+
+  // Update export HTML when preview changes - MUST be called before conditional return
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timeout = setTimeout(() => {
+      if (previewRef.current) {
+        // Extract only the ResumePreview content with data-resume-preview attribute
+        // This preserves all inline styles from the preview
+        const previewContent = previewRef.current.querySelector('[data-resume-preview]');
+        if (previewContent) {
+          // Clone the element to preserve all styles
+          const cloned = previewContent.cloneNode(true) as HTMLElement;
+          // Keep padding/margin as they define the layout spacing
+          // Only remove visual wrapper styles that shouldn't be in PDF
+          cloned.style.borderRadius = '0';
+          cloned.style.boxShadow = 'none';
+          cloned.style.border = 'none';
+          // Ensure font is explicitly set
+          cloned.style.fontFamily = '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif';
+          setExportHtml(cloned.outerHTML);
+        } else {
+          // Fallback: get innerHTML but log a warning
+          console.warn('Could not find [data-resume-preview], using fallback');
+          setExportHtml(previewRef.current.innerHTML);
+        }
+      }
+    }, 500); // Longer delay to ensure DOM, fonts, and SVG icons are fully rendered
+    return () => clearTimeout(timeout);
+  }, [sections, previewKey, setExportHtml]);
+
+  // Show loading until mounted - AFTER all hooks are called
+  // This ensures server and client render the same initial state
+  if (typeof window === 'undefined' || !isMounted) {
+    return (
+      <div className="h-screen flex items-center justify-center animated-gradient aurora" data-theme="atsbuilder" suppressHydrationWarning>
+        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
+      </div>
+    );
+  }
+
+  // Manual save handler
+  const handleSave = async () => {
+    await saveResume();
+  };
+
+  // Save As handler (create new version)
+  const handleSaveAs = async () => {
+    const currentResumeId = resumeId;
+    // Clear resume ID to create a new resume
+    setResumeId(null);
+    // Save as new resume
+    await saveResume();
+    // Note: The save will create a new resume and update the resumeId
+  };
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
@@ -474,34 +580,6 @@ export default function CreateResume() {
     );
   }
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const timeout = setTimeout(() => {
-      if (previewRef.current) {
-        // Extract only the ResumePreview content with data-resume-preview attribute
-        // This preserves all inline styles from the preview
-        const previewContent = previewRef.current.querySelector('[data-resume-preview]');
-        if (previewContent) {
-          // Clone the element to preserve all styles
-          const cloned = previewContent.cloneNode(true) as HTMLElement;
-          // Keep padding/margin as they define the layout spacing
-          // Only remove visual wrapper styles that shouldn't be in PDF
-          cloned.style.borderRadius = '0';
-          cloned.style.boxShadow = 'none';
-          cloned.style.border = 'none';
-          // Ensure font is explicitly set
-          cloned.style.fontFamily = '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif';
-          setExportHtml(cloned.outerHTML);
-        } else {
-          // Fallback: get innerHTML but log a warning
-          console.warn('Could not find [data-resume-preview], using fallback');
-          setExportHtml(previewRef.current.innerHTML);
-        }
-      }
-    }, 500); // Longer delay to ensure DOM, fonts, and SVG icons are fully rendered
-    return () => clearTimeout(timeout);
-  }, [sections, selectedTemplate, previewKey]);
-
   function getDefaultContent(type: SectionType): any {
     switch (type) {
       case 'professional-summary':
@@ -592,29 +670,61 @@ export default function CreateResume() {
     );
   }
 
-  // Editor View
+
+  // Editor View - only rendered after hydration
   return (
-    <div className="h-screen flex flex-col animated-gradient aurora" data-theme="atsbuilder">
+    <div className="h-screen flex flex-col animated-gradient aurora" data-theme="atsbuilder" suppressHydrationWarning>
       {/* Header */}
       <header className="glass border-b neon-border px-6 py-4 flex items-center justify-between shadow-2xl backdrop-blur-xl">
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-6 flex-1 min-w-0">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-brand-gray-text hover:text-brand-purple-light transition-all duration-300 group"
+            className="flex items-center space-x-2 text-brand-gray-text hover:text-brand-purple-light transition-all duration-300 group flex-shrink-0"
           >
             <span className="text-xl group-hover:transform group-hover:-translate-x-1 transition-transform">←</span>
             <span className="font-semibold">Back to Home</span>
           </Link>
-          <div className="h-8 w-px bg-gradient-to-b from-transparent via-brand-purple/50 to-transparent"></div>
-          <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-black gradient-text tracking-wide">ResuCraft</h1>
+          <div className="flex-1 max-w-md mx-6 min-w-0">
+            <input
+              type="text"
+              value={title || ''}
+              onChange={(e) => {
+                setTitle(e.target.value || null);
+                setHasUnsavedChanges(true);
+              }}
+              onBlur={() => {
+                if (initialized && user && sections.length > 0) {
+                  triggerAutoSave();
+                }
+              }}
+              placeholder="Resume Name"
+              className="w-full px-4 py-2 rounded-xl bg-brand-navy/50 border border-brand-purple/30 text-brand-white placeholder-brand-gray-text focus:outline-none focus:ring-2 focus:ring-brand-purple/50 focus:border-brand-purple transition-all"
+            />
           </div>
         </div>
         <div className="flex items-center space-x-3">
           <SaveStatusIndicator />
+          {user && (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges || saveStatus === 'saving'}
+                className="group px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save
+              </button>
+              <button
+                onClick={handleSaveAs}
+                disabled={saveStatus === 'saving'}
+                className="group px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center bg-brand-purple/20 hover:bg-brand-purple/30 text-brand-purple border border-brand-purple/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Save as a new resume version"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Save As
+              </button>
+            </>
+          )}
           <button
             onClick={() => setShowTailorModal(true)}
             className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-green via-brand-cyan to-brand-green-light hover:scale-105 text-white border-2 border-brand-green/30 glow-green"
@@ -930,10 +1040,16 @@ function SaveStatusIndicator() {
     }
   };
 
+  const sections = useResumeStore((state) => state.sections);
+  const hasUnsaved = saveStatus === 'idle' && sections.length > 0;
+
   return (
     <div className="flex items-center gap-2 text-sm text-brand-gray-text px-4 py-2 rounded-lg bg-brand-navy/30 border border-brand-purple/20">
       {getStatusIcon()}
       <span>{getStatusText()}</span>
+      {hasUnsaved && (
+        <span className="text-yellow-400 text-xs ml-2">• Unsaved</span>
+      )}
     </div>
   );
 }
@@ -2209,5 +2325,17 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
         </div>
       )} */}
     </div>
+  );
+}
+
+export default function CreateResume() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center animated-gradient aurora" data-theme="atsbuilder">
+        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
+      </div>
+    }>
+      <CreateResumeContent />
+    </Suspense>
   );
 }
