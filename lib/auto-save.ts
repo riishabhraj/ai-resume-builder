@@ -5,12 +5,22 @@ import { useAuthStore } from '@/stores/authStore';
 const DEBOUNCE_DELAY = 2000; // 2 seconds
 
 export function useAutoSave() {
-  const { sections, selectedTemplate, resumeId, title, setResumeId, setSaveStatus, setLastSavedAt } = useResumeStore();
+  const { sections, selectedTemplate, resumeId, title, setResumeId, setTitle, setSaveStatus, setLastSavedAt } = useResumeStore();
   const { user } = useAuthStore();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const saveResume = useCallback(async () => {
+    // Only allow auto-save when on the create page
+    // This prevents unwanted saves when the store has stale data from other pages
+    if (typeof window !== 'undefined') {
+      const isOnCreatePage = window.location.pathname === '/create';
+      if (!isOnCreatePage) {
+        // Not on create page, skip auto-save
+        return;
+      }
+    }
+    
     if (!user) {
       // Not authenticated, skip auto-save
       return;
@@ -19,6 +29,25 @@ export function useAutoSave() {
     if (sections.length === 0) {
       // No sections to save
       return;
+    }
+
+    // CRITICAL: For new resumes (no resumeId), only save if user has explicitly made changes
+    // This prevents automatic creation when just visiting /create
+    if (!resumeId) {
+      const personalInfo = sections.find(s => s.type === 'personal-info');
+      const hasExplicitData = personalInfo?.content && (
+        personalInfo.content.fullName?.trim() ||
+        personalInfo.content.email?.trim() ||
+        personalInfo.content.phone?.trim() ||
+        personalInfo.content.title?.trim() ||
+        sections.length > 1 ||
+        (title && title.trim())
+      );
+      
+      if (!hasExplicitData) {
+        // No explicit user data - don't create empty resume
+        return;
+      }
     }
 
     // Cancel any in-flight request
@@ -33,15 +62,23 @@ export function useAutoSave() {
     setSaveStatus('saving');
 
     try {
+      // Always include title in the request, even if null
+      // This ensures the server knows the user's intent (null = auto-generate, string = use as-is)
+      const savePayload: any = {
+        sections,
+        templateId: selectedTemplate,
+        resumeId: resumeId || undefined,
+      };
+      
+      // Include title if it's defined (null, empty string, or non-empty string)
+      if (title !== undefined) {
+        savePayload.title = title;
+      }
+      
       const response = await fetch('/api/resume/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sections,
-          templateId: selectedTemplate,
-          title: title || undefined,
-          resumeId: resumeId || undefined,
-        }),
+        body: JSON.stringify(savePayload),
         signal: abortController.signal,
       });
 
@@ -61,9 +98,15 @@ export function useAutoSave() {
         return;
       }
       
-      // Update resume ID if it's a new resume
-      if (!resumeId && data.resumeId) {
+      // Update resume ID from server response
+      // This handles both new resumes and cases where a resume was recreated (e.g., after deletion)
+      if (data.resumeId && data.resumeId !== resumeId) {
         setResumeId(data.resumeId);
+      }
+
+      // Update title from server response to ensure consistency
+      if (data.resume && data.resume.title !== undefined) {
+        setTitle(data.resume.title);
       }
 
       setSaveStatus('saved');
@@ -87,7 +130,7 @@ export function useAutoSave() {
         setSaveStatus('idle');
       }, 5000);
     }
-  }, [user, sections, selectedTemplate, title, resumeId, setResumeId, setSaveStatus, setLastSavedAt]);
+  }, [user, sections, selectedTemplate, title, resumeId, setResumeId, setTitle, setSaveStatus, setLastSavedAt]);
 
   const triggerAutoSave = useCallback(() => {
     // Clear existing timeout

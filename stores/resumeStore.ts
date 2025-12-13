@@ -173,9 +173,11 @@ export const useResumeStore = create<ResumeState>()(
       }),
       
       loadResume: (resume) => {
+        // Always overwrite with API data to ensure consistency
+        // This prevents stale localStorage data from persisting
         set({
           resumeId: resume.id,
-          title: resume.title || null,
+          title: resume.title ?? null, // Use nullish coalescing to preserve empty strings
           sections: resume.sections || [getDefaultPersonalInfo()],
           selectedTemplate: resume.template_id || 'professional',
         });

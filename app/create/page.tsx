@@ -164,8 +164,12 @@ function CreateResumeContent() {
   
   // Load resume from URL if provided
   const loadResumeFromApi = useCallback(async (id: string) => {
-    // Prevent loading the same resume twice
-    if (hasLoadedResumeRef.current && lastResumeIdRef.current === id) {
+    // Always load from API if:
+    // 1. We haven't loaded this resume yet (different from last loaded)
+    // 2. OR the store's resumeId doesn't match (stale data from localStorage)
+    // This ensures we always get the latest data from the database
+    if (hasLoadedResumeRef.current && lastResumeIdRef.current === id && resumeId === id) {
+      // Already loaded this exact resume and store matches - skip
       return;
     }
 
@@ -179,9 +183,11 @@ function CreateResumeContent() {
       
       const data = await response.json();
       if (data.success && data.resume) {
+        // Always load from API to ensure we have the latest data
+        // This overwrites any stale data from localStorage
         loadResume({
           id: data.resume.id,
-          title: data.resume.title || null,
+          title: data.resume.title ?? null, // Use nullish coalescing to preserve empty strings
           sections: data.resume.sections || [],
           template_id: data.resume.template_id,
         });
@@ -197,7 +203,7 @@ function CreateResumeContent() {
     } finally {
       setLoadingResume(false);
     }
-  }, [loadResume, setResumeId, resetResume]);
+  }, [loadResume, setResumeId, resetResume, resumeId]);
 
   // Reset unsaved changes when save is successful
   const saveStatus = useResumeStore((state) => state.saveStatus);
@@ -205,6 +211,21 @@ function CreateResumeContent() {
   // Ensure component only renders fully on client side
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+  
+  // Clear resume store when leaving the create page to prevent stale data
+  useEffect(() => {
+    return () => {
+      // Only clear if we're actually navigating away (not just re-rendering)
+      // This cleanup runs when the component unmounts
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/create') {
+          // Don't clear the store here - let it persist for navigation back to /create
+          // The meaningful changes check will prevent unwanted saves
+        }
+      }
+    };
   }, []);
   
   // Check if we should redirect to waitlist
@@ -220,26 +241,78 @@ function CreateResumeContent() {
     
     // Only load if we have a URL param and haven't loaded it yet
     if (resumeIdFromUrl && user && !loadingResume) {
-      if (resumeIdFromUrl !== lastResumeIdRef.current) {
+      // Always load from API if:
+      // 1. We haven't loaded this resume yet (different from last loaded)
+      // 2. OR the store's resumeId doesn't match the URL (stale data from localStorage)
+      const shouldLoad = resumeIdFromUrl !== lastResumeIdRef.current || 
+                        resumeId !== resumeIdFromUrl;
+      
+      if (shouldLoad) {
         loadResumeFromApi(resumeIdFromUrl);
       }
-    } else if (!resumeIdFromUrl && hasLoadedResumeRef.current) {
-      // Reset refs when URL param is removed (new resume)
-      // Don't clear the store here - let the user create a new resume naturally
-      hasLoadedResumeRef.current = false;
-      lastResumeIdRef.current = null;
+    } else if (!resumeIdFromUrl && user) {
+      // No resume ID in URL - this is a new resume
+      // Reset the store to ensure no stale data triggers auto-save
+      if (resumeId !== null || hasLoadedResumeRef.current) {
+        // Only reset if we have a resumeId in store or have loaded before
+        // This prevents resetting on every render
+        resetResume();
+        setResumeId(null);
+        hasLoadedResumeRef.current = false;
+        lastResumeIdRef.current = null;
+      }
     }
-    // Only depend on resumeIdFromUrl, initialized, user, and isMounted
+    // Only depend on resumeIdFromUrl, initialized, user, isMounted, and resumeId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeIdFromUrl, initialized, user, isMounted]);
+  }, [resumeIdFromUrl, initialized, user, isMounted, resumeId, resetResume, setResumeId]);
 
   // Track unsaved changes and auto-save
   useEffect(() => {
+    // Only auto-save when on the create page and user is authenticated
+    // This prevents auto-save from triggering on other pages (e.g., dashboard)
+    if (typeof window === 'undefined') return; // Server-side check
+    
+    const isOnCreatePage = window.location.pathname === '/create';
+    if (!isOnCreatePage) return; // Not on create page, skip auto-save
+    
     if (initialized && user && sections.length > 0 && !loadingResume) {
-      setHasUnsavedChanges(true);
-      triggerAutoSave();
+      // Check if user has made meaningful changes before auto-saving
+      const hasMeaningfulChanges = (() => {
+        // If there's a resumeId, always allow auto-save (updating existing resume)
+        if (resumeId) {
+          return true;
+        }
+        
+        // For new resumes, check if user has entered any data
+        const personalInfo = sections.find(s => s.type === 'personal-info');
+        if (personalInfo?.content) {
+          const { fullName, email, phone, title: jobTitle } = personalInfo.content;
+          // Check if any field has been filled
+          if (fullName?.trim() || email?.trim() || phone?.trim() || jobTitle?.trim()) {
+            return true;
+          }
+        }
+        
+        // Check if user has added more than just the default personal-info section
+        if (sections.length > 1) {
+          return true;
+        }
+        
+        // Check if user has set a title
+        if (title && title.trim()) {
+          return true;
+        }
+        
+        // No meaningful changes - don't auto-save
+        return false;
+      })();
+      
+      if (hasMeaningfulChanges) {
+        setHasUnsavedChanges(true);
+        triggerAutoSave();
+      }
     }
-  }, [sections, selectedTemplate, title, initialized, user, triggerAutoSave, loadingResume]);
+  }, [sections, selectedTemplate, title, initialized, user, triggerAutoSave, loadingResume, resumeId]);
 
   useEffect(() => {
     if (saveStatus === 'saved') {
@@ -687,9 +760,11 @@ function CreateResumeContent() {
           <div className="flex-1 max-w-md mx-6 min-w-0">
             <input
               type="text"
-              value={title || ''}
+              value={title ?? ''}
               onChange={(e) => {
-                setTitle(e.target.value || null);
+                // Preserve empty strings - only convert to null if truly empty after trim
+                const newTitle = e.target.value.trim() === '' ? null : e.target.value;
+                setTitle(newTitle);
                 setHasUnsavedChanges(true);
               }}
               onBlur={() => {

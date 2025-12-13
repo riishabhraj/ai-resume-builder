@@ -124,7 +124,23 @@ export async function DELETE(
       .eq('user_id', user.id)
       .single();
 
-    if (fetchError || !resume) {
+    if (fetchError) {
+      // PGRST116 means no rows found
+      if (fetchError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Resume not found or unauthorized' },
+          { status: 404 }
+        );
+      }
+      // Other errors
+      console.error('Error fetching resume for deletion:', fetchError);
+      return NextResponse.json(
+        { error: 'Failed to fetch resume', details: fetchError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!resume) {
       return NextResponse.json(
         { error: 'Resume not found or unauthorized' },
         { status: 404 }

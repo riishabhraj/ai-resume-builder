@@ -56,15 +56,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate title from personal info if not provided
+    // Only auto-generate if title is null/undefined, not if it's an empty string
+    // Empty string means user explicitly cleared it, so use default
     let resumeTitle = title;
-    if (!resumeTitle) {
+    if (resumeTitle === null || resumeTitle === undefined) {
+      // Title not provided - auto-generate from personal info
       const personalInfo = sections.find((s) => s.type === 'personal-info');
       if (personalInfo?.content?.fullName) {
         resumeTitle = `${personalInfo.content.fullName}'s Resume`;
       } else {
         resumeTitle = 'Untitled Resume';
       }
+    } else if (typeof resumeTitle === 'string' && resumeTitle.trim() === '') {
+      // If title is empty string (user cleared it), use default
+      resumeTitle = 'Untitled Resume';
     }
+    // If title is a non-empty string, use it as-is
 
     // Prepare data for insert/update
     const resumeData: any = {
@@ -77,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     let result;
     if (resumeId) {
-      // Update existing resume
+      // Try to update existing resume
       const { data, error } = await supabase
         .from('resume_versions')
         .update(resumeData)
@@ -87,22 +94,31 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('Update resume error:', error);
-        return NextResponse.json(
-          { error: 'Failed to update resume', details: error.message },
-          { status: 500 }
-        );
+        // If resume doesn't exist (PGRST116), fall back to creating a new one
+        // This can happen if the resume was deleted but the store still has the ID
+        if (error.code === 'PGRST116') {
+          console.log(`Resume ${resumeId} not found, creating new resume instead`);
+          // Fall through to create new resume
+        } else {
+          console.error('Update resume error:', error);
+          return NextResponse.json(
+            { error: 'Failed to update resume', details: error.message },
+            { status: 500 }
+          );
+        }
+      } else if (data) {
+        // Update successful
+        result = data;
+      } else {
+        // No data returned but no error - resume doesn't exist, create new one
+        console.log(`Resume ${resumeId} not found, creating new resume instead`);
       }
-
-      if (!data) {
-        return NextResponse.json(
-          { error: 'Resume not found or unauthorized' },
-          { status: 404 }
-        );
-      }
-
-      result = data;
-    } else {
+    }
+    
+    // Create new resume if:
+    // 1. No resumeId was provided, OR
+    // 2. Update failed because resume doesn't exist
+    if (!result) {
       // Create new resume
       resumeData.status = 'draft';
       resumeData.created_at = new Date().toISOString();

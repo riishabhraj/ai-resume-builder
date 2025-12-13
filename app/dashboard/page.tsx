@@ -71,6 +71,11 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (resumeId: string) => {
+    // Prevent duplicate delete requests
+    if (deletingId === resumeId) {
+      return; // Already deleting this resume
+    }
+
     if (!confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
       return;
     }
@@ -82,6 +87,13 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
+        // If 404, the resume might have already been deleted (e.g., by another tab/device)
+        // In this case, just remove it from local state
+        if (response.status === 404) {
+          console.log('Resume not found (may have been already deleted), removing from list');
+          setResumes(resumes.filter((r) => r.id !== resumeId));
+          return;
+        }
         throw new Error('Failed to delete resume');
       }
 
