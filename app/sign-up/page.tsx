@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { Mail, Lock, User, Loader2, AlertCircle, FileText } from 'lucide-react';
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton';
 
 function SignUpContent() {
   const router = useRouter();
@@ -333,11 +334,7 @@ function SignUpContent() {
 
 export default function SignUpPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen animated-gradient aurora flex items-center justify-center" data-theme="atsbuilder">
-        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
-      </div>
-    }>
+    <Suspense fallback={<PageSkeleton />}>
       <SignUpContent />
     </Suspense>
   );

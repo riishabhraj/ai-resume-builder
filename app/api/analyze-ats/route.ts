@@ -1,27 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, hasSupabase } from '@/lib/supabase';
 import { generateEmbedding, hasOpenAI } from '@/lib/embeddings';
+import type { AnalysisResult } from '@/lib/types/analysis';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-interface ATSAnalysisResult {
-  overallScore: number;
-  categories: {
-    keywords: number;
-    format: number;
-    experience: number;
-    completeness: number;
-    readability: number;
-  };
-  suggestions: Array<{
-    priority: 'high' | 'medium' | 'low';
-    category: string;
-    suggestion: string;
-    impact: string;
-  }>;
-  strengths: string[];
-  detailedFeedback: string;
-}
+// Alias for API route compatibility
+type ATSAnalysisResult = AnalysisResult;
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,15 +90,15 @@ export async function POST(request: NextRequest) {
           {
             role: 'system',
             content:
-              'You are an expert ATS (Applicant Tracking System) analyst and senior recruiter with 20+ years of experience. You provide detailed, actionable feedback to help candidates optimize their resumes for ATS systems. Return your analysis as valid JSON only, no additional text.',
+              'You are a senior ATS analyst and career consultant with 20+ years of experience at Fortune 500 companies. You specialize in resume optimization for top tech companies, consulting firms, and financial institutions. Your analysis is trusted by recruiters at Google, Microsoft, McKinsey, and Goldman Sachs. Provide comprehensive, actionable feedback with specific examples and industry benchmarks. Return your analysis as valid JSON only, no additional text.',
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        temperature: 0.3, // Lower temperature for more consistent scoring
-        max_tokens: 2000,
+        temperature: 0.4, // Balanced for detailed analysis with consistency
+        max_tokens: 4000, // Increased for more comprehensive analysis
       }),
     });
 
@@ -224,48 +209,149 @@ function buildAnalysisPrompt(
 
 ${retrievedContext ? `RELEVANT ATS BEST PRACTICES AND REQUIREMENTS:\n${retrievedContext}\n\n` : ''}
 
-${jobDescription ? `JOB DESCRIPTION:\n${jobDescription}\n\n` : ''}
+${jobDescription ? `TARGET JOB DESCRIPTION:\n${jobDescription}\n\n` : ''}
 
 RESUME TO ANALYZE:
 ${resumeText}
 
-Provide a comprehensive ATS analysis in the following JSON format:
+Provide a COMPREHENSIVE, PROFESSIONAL analysis with the following structure:
+
+1. KEYWORD ANALYSIS:
+   - List all relevant keywords found (technical skills, industry terms, job requirements)
+   - Identify missing critical keywords ${jobDescription ? 'from the job description' : 'for the industry'}
+   - Calculate keyword density and distribution
+   - Provide specific keyword recommendations with context
+
+2. SECTION-BY-SECTION ANALYSIS:
+   For EACH section (Personal Info, Summary, Experience, Education, Skills, etc.):
+   - Score (0-100) with justification
+   - Word count vs. ideal word count for experience level
+   - Specific strengths with examples from the resume
+   - Specific weaknesses with examples
+   - Actionable recommendations with before/after examples where applicable
+
+3. QUANTIFIABLE METRICS ASSESSMENT:
+   - Count of quantifiable achievements (numbers, percentages, dollar amounts)
+   - Quality of metrics (impactful vs. superficial)
+   - Recommendations for adding metrics where missing
+
+4. ACTION VERBS ANALYSIS:
+   - Variety and strength of action verbs used
+   - Repetition issues
+   - Industry-appropriate verb recommendations
+
+5. INDUSTRY BENCHMARKING:
+   - Compare against typical resumes for this role/level
+   - Identify what top performers include that this resume lacks
+   - Industry-specific formatting and content expectations
+
+6. RECRUITER APPEAL:
+   - First impression assessment
+   - Readability and flow
+   - Professional tone and language
+
+7. IMPROVEMENT ROADMAP:
+   - Prioritized action plan
+   - Quick wins (high impact, low effort)
+   - Long-term improvements
+
+Return as JSON with this enhanced structure:
 
 {
   "overallScore": <number 0-100>,
+  "summaryFeedback": "<Brief summary like 'Decent — Fix Gaps to Compete'>",
+  "scoreGap": <number of points needed to reach 95+>,
   "categories": {
-    "keywords": <number 0-100>,
-    "format": <number 0-100>,
-    "experience": <number 0-100>,
-    "completeness": <number 0-100>,
-    "readability": <number 0-100>
+    "ats": { "score": <number 0-20>, "max": 20, "why": "<Brief explanation of why this score>" },
+    "content": { "score": <number 0-40>, "max": 40, "why": "<Brief explanation of why this score>" },
+    "writing": { "score": <number 0-10>, "max": 10, "why": "<Brief explanation of why this score>" },
+    "jobMatch": { "score": <number 0-25>, "max": 25, "why": "<Brief explanation of why this score>" },
+    "ready": { "score": <number 0-5>, "max": 5, "why": "<Brief explanation of why this score>" }
   },
   "suggestions": [
     {
       "priority": "high|medium|low",
-      "category": "keywords|format|experience|completeness|readability",
-      "suggestion": "Specific actionable suggestion",
-      "impact": "Expected score improvement (e.g., +5 points)"
+      "category": "keywords|format|experience|completeness|readability|quantifiableMetrics|actionVerbs",
+      "suggestion": "Specific actionable suggestion with context",
+      "impact": "Expected score improvement (e.g., +5 points)",
+      "example": "Concrete example of how to implement",
+      "beforeAfter": {
+        "before": "Current text from resume",
+        "after": "Improved version"
+      }
     }
   ],
-  "strengths": ["List 3-5 strong points of the resume"],
-  "detailedFeedback": "2-3 paragraph summary of the analysis"
+  "strengths": [
+    {
+      "point": "Strong point description",
+      "evidence": "Where this appears in the resume",
+      "impact": "Why this matters for ATS/recruiters"
+    }
+  ],
+  "detailedFeedback": {
+    "executiveSummary": "High-level overview (2-3 sentences)",
+    "keyFindings": ["Top 3-5 critical findings"],
+    "improvementRoadmap": "Step-by-step prioritized plan",
+    "industryInsights": "Industry-specific advice and benchmarks"
+  },
+  "keywordAnalysis": {
+    "found": ["List of keywords found in resume"],
+    "missing": ["List of important missing keywords"],
+    "recommendations": ["Suggested keywords to add with context"]
+  },
+  "sectionAnalysis": {
+    "Personal Info": {
+      "score": <number>,
+      "strengths": ["Specific strengths"],
+      "weaknesses": ["Specific weaknesses"],
+      "recommendations": ["Actionable recommendations"],
+      "wordCount": <number>,
+      "idealWordCount": <number>
+    },
+    "Experience": { /* same structure */ },
+    "Education": { /* same structure */ },
+    "Skills": { /* same structure */ }
+    /* Add other sections as found in resume */
+  },
+  "industryBenchmarks": {
+    "averageScore": <number>,
+    "percentile": <number>,
+    "topPerformers": ["What top resumes have that this one lacks"]
+  }
 }
 
-SCORING CRITERIA:
-- Keywords (25%): Industry terms, technical skills, job-relevant keywords${jobDescription ? ', match with job description' : ''}
-- Format (20%): Standard sections, clean structure, ATS-parseable format
-- Experience (30%): Action verbs, quantifiable achievements, impact demonstration
-- Completeness (15%): All necessary sections present, sufficient detail
-- Readability (10%): Length appropriate, clear language, professional tone
+SCORING CRITERIA (5 categories with specific max values):
+1. ATS & Structure (max: 20 points): ATS compatibility, parseability, format compliance, keyword optimization, proper section structure
+2. Content Quality (max: 40 points): Quality of content, relevance, completeness, quantifiable achievements, impact demonstration
+3. Writing Quality (max: 10 points): Writing quality, clarity, professional tone, action verbs, grammar, conciseness
+4. Job Optimization (max: 25 points): ${jobDescription ? 'Alignment with job description, keyword matching, role relevance, tailored content' : 'Industry alignment, role appropriateness, targeted content'}
+5. Application Ready (max: 5 points): Overall readiness, completeness, professional presentation, all critical sections present, no errors
 
-Focus on:
-1. Specific, actionable improvements
-2. Quantifiable metrics and achievements
-3. Keyword optimization ${jobDescription ? 'for the job description' : ''}
-4. ATS system compatibility
-5. Recruiter appeal
+Calculate each category score based on the max value:
+- ATS: 0-20 (e.g., 19/20 = excellent ATS compatibility)
+- Content: 0-40 (e.g., 33/40 = good content quality)
+- Writing: 0-10 (e.g., 8/10 = strong writing)
+- Job Match: 0-25 (e.g., 22/25 = good job alignment)
+- Ready: 0-5 (e.g., 5/5 = fully ready)
 
-Return ONLY the JSON object, no additional text or markdown.`;
+SCORING GUIDELINES:
+- Be specific and cite exact examples from the resume
+- Provide concrete before/after examples for suggestions
+- Use industry-standard terminology
+- Consider ATS parsing limitations (Taleo, Workday, Greenhouse, etc.)
+- Balance technical optimization with human readability
+- Reference specific line numbers or sections when possible
+
+IMPORTANT:
+- All scores should be justified with specific evidence
+- Each category must include a "why" field explaining the score in 1-2 sentences
+- Calculate scoreGap as the difference between overallScore and 95
+- summaryFeedback should be a brief, actionable summary (e.g., "Decent — Fix Gaps to Compete", "Strong — Minor Tweaks Needed")
+- Suggestions must include actionable examples
+- Strengths should reference specific resume content
+- Use professional, recruiter-friendly language
+- Return scores in the format: { "score": <number>, "max": <max_value>, "why": "<explanation>" }
+
+Return ONLY valid JSON, no markdown or additional text.`;
 }
 

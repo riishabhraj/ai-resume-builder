@@ -38,15 +38,15 @@ export default function Home() {
     <>
     <div className="min-h-screen animated-gradient aurora" data-theme="atsbuilder" suppressHydrationWarning>
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3 group cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
-                <FileText className="w-6 h-6 text-white" />
+            <div className="flex items-center space-x-2 group cursor-pointer">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
+                <FileText className="w-5 h-5 text-white" />
               </div>
-              <span className="text-2xl font-bold gradient-text">ResuCraft</span>
+              <span className="text-xl font-bold gradient-text">ResuCraft</span>
             </div>
-            <Link href="/sign-in?redirect=/dashboard" className="group px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple border border-brand-purple-light/20">
+            <Link href="/sign-in?redirect=/dashboard" className="group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple">
               <span className="flex items-center">
                 Get Started
                 <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>

@@ -49,6 +49,18 @@ export function useAutoSave() {
         return;
       }
     }
+    
+    // Additional check: If we're on /create without an ID, make sure we're not creating duplicates
+    // by checking if there's already a recent save in progress or if we just navigated here
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlId = urlParams.get('id');
+      if (!urlId && resumeId) {
+        // URL has no ID but store has resumeId - this is stale data, don't save
+        console.log('Skipping auto-save: URL has no ID but store has resumeId (stale data)');
+        return;
+      }
+    }
 
     // Cancel any in-flight request
     if (abortControllerRef.current) {
@@ -88,6 +100,15 @@ export function useAutoSave() {
       }
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If resume not found and we have a resumeId, clear it to prevent duplicates
+        if (response.status === 404 && resumeId && errorData.clearResumeId) {
+          console.log('Resume not found, clearing resumeId from store');
+          setResumeId(null);
+          return; // Don't throw error, just clear the stale ID
+        }
+        
         throw new Error('Failed to save resume');
       }
 
@@ -105,8 +126,17 @@ export function useAutoSave() {
       }
 
       // Update title from server response to ensure consistency
+      // BUT: For new resumes, always use "Untitled Resume" and don't overwrite with auto-generated titles
       if (data.resume && data.resume.title !== undefined) {
-        setTitle(data.resume.title);
+        // For NEW resumes (no resumeId before save), always set to "Untitled Resume"
+        // This prevents using stale personal info to generate titles
+        if (!resumeId) {
+          // New resume - always use "Untitled Resume" regardless of what API returned
+          setTitle('Untitled Resume');
+        } else {
+          // Existing resume - use the title from API
+          setTitle(data.resume.title);
+        }
       }
 
       setSaveStatus('saved');

@@ -62,9 +62,19 @@ export async function POST(request: NextRequest) {
     if (resumeTitle === null || resumeTitle === undefined) {
       // Title not provided - auto-generate from personal info
       const personalInfo = sections.find((s) => s.type === 'personal-info');
-      if (personalInfo?.content?.fullName) {
-        resumeTitle = `${personalInfo.content.fullName}'s Resume`;
+      const fullName = personalInfo?.content?.fullName?.trim();
+      
+      // For NEW resumes (no resumeId), always default to "Untitled Resume"
+      // This prevents using stale personal info data from previous resumes
+      // Only use personal info name for EXISTING resumes that are being updated
+      if (!resumeId) {
+        // New resume - always use "Untitled Resume" to prevent stale data issues
+        resumeTitle = 'Untitled Resume';
+      } else if (resumeId && fullName && fullName.length > 0) {
+        // Existing resume being updated - can use name if available
+        resumeTitle = `${fullName}'s Resume`;
       } else {
+        // Existing resume but no name - use default
         resumeTitle = 'Untitled Resume';
       }
     } else if (typeof resumeTitle === 'string' && resumeTitle.trim() === '') {
@@ -84,7 +94,26 @@ export async function POST(request: NextRequest) {
 
     let result;
     if (resumeId) {
-      // Try to update existing resume
+      // First verify the resume exists and belongs to the user
+      const { data: existingResume, error: fetchError } = await supabase
+        .from('resume_versions')
+        .select('id')
+        .eq('id', resumeId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError || !existingResume) {
+        // Resume doesn't exist or doesn't belong to user
+        // Don't create a new one - return error to prevent duplicates
+        console.log(`Resume ${resumeId} not found or unauthorized, clearing resumeId from client`);
+        return NextResponse.json({
+          success: false,
+          error: 'Resume not found',
+          clearResumeId: true, // Signal client to clear resumeId
+        }, { status: 404 });
+      }
+
+      // Resume exists, proceed with update
       const { data, error } = await supabase
         .from('resume_versions')
         .update(resumeData)
@@ -94,24 +123,14 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        // If resume doesn't exist (PGRST116), fall back to creating a new one
-        // This can happen if the resume was deleted but the store still has the ID
-        if (error.code === 'PGRST116') {
-          console.log(`Resume ${resumeId} not found, creating new resume instead`);
-          // Fall through to create new resume
-        } else {
-          console.error('Update resume error:', error);
-          return NextResponse.json(
-            { error: 'Failed to update resume', details: error.message },
-            { status: 500 }
-          );
-        }
+        console.error('Update resume error:', error);
+        return NextResponse.json(
+          { error: 'Failed to update resume', details: error.message },
+          { status: 500 }
+        );
       } else if (data) {
         // Update successful
         result = data;
-      } else {
-        // No data returned but no error - resume doesn't exist, create new one
-        console.log(`Resume ${resumeId} not found, creating new resume instead`);
       }
     }
     

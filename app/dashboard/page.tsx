@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, BarChart3, LogOut, User, Menu, X } from 'lucide-react';
+import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, BarChart3, LogOut, User, Menu, X, TrendingUp, Award, Target, Clock, ArrowRight, Sparkles } from 'lucide-react';
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { useAuthStore } from '@/stores/authStore';
+import HiringZoneChart from '@/components/HiringZoneChart';
+import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -69,6 +71,37 @@ export default function Dashboard() {
       day: 'numeric',
     });
   };
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const validScores = resumes
+      .map((r) => r.ats_score)
+      .filter((score): score is number => score !== null && score !== undefined);
+    
+    const totalResumes = resumes.length;
+    const averageScore = validScores.length > 0
+      ? Math.round(validScores.reduce((sum, score) => sum + score, 0) / validScores.length)
+      : 0;
+    const highestScore = validScores.length > 0 ? Math.max(...validScores) : 0;
+    const inHiringZone = validScores.filter((score) => score >= 90).length;
+    const recentResumes = resumes
+      .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+      .slice(0, 5);
+    const bestResume = validScores.length > 0 
+      ? resumes.find((r) => r.ats_score === highestScore && r.ats_score !== null)
+      : undefined;
+    const needsAttention = resumes.filter((r) => r.ats_score !== null && r.ats_score < 60);
+
+    return {
+      totalResumes,
+      averageScore,
+      highestScore,
+      inHiringZone,
+      recentResumes,
+      bestResume,
+      needsAttention,
+    };
+  }, [resumes]);
 
   const handleDelete = async (resumeId: string) => {
     // Prevent duplicate delete requests
@@ -135,43 +168,39 @@ export default function Dashboard() {
   }, [showUserMenu]);
 
   if (!initialized || loading) {
-    return (
-      <div className="min-h-screen bg-brand-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
     <div className="min-h-screen animated-gradient aurora" data-theme="atsbuilder">
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-6">
-              <Link href="/" className="flex items-center space-x-3 group hover:opacity-90 transition-opacity">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
-                  <FileText className="w-6 h-6 text-white" />
+              <Link href="/" className="flex items-center space-x-2 group hover:opacity-90 transition-opacity">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
+                  <FileText className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold gradient-text">ResuCraft</span>
+                <span className="text-xl font-bold gradient-text">ResuCraft</span>
               </Link>
               
               {/* Desktop Navigation */}
               <nav className="hidden md:flex items-center space-x-1">
                 <Link
                   href="/dashboard"
-                  className="px-4 py-2 rounded-lg font-medium text-brand-white bg-brand-purple/20 hover:bg-brand-purple/30 transition-all duration-300 border border-brand-purple/30"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-white bg-brand-purple/20 hover:bg-brand-purple/30 transition-all duration-300"
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href="/dashboard"
-                  className="px-4 py-2 rounded-lg font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50 transition-all duration-300"
+                  href="/resumes"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50 transition-all duration-300"
                 >
                   Resumes
                 </Link>
                 <Link
                   href="/review"
-                  className="px-4 py-2 rounded-lg font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50 transition-all duration-300"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50 transition-all duration-300"
                 >
                   AI Analysis
                 </Link>
@@ -181,7 +210,7 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               <Link
                 href="/create"
-                className="hidden md:flex group px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple border border-brand-purple-light/20"
+                className="hidden md:flex group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Resume
@@ -194,26 +223,60 @@ export default function Dashboard() {
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30 transition-all duration-300"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-cyan to-brand-purple flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
+                    {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
+                      <img
+                        src={user.user_metadata?.avatar_url || user.user_metadata?.picture}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover border-2 border-brand-purple/30"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-cyan to-brand-purple flex items-center justify-center">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                    )}
                     <span className="hidden md:block text-brand-white text-sm font-medium">
-                      {user.email?.split('@')[0] || 'User'}
+                      {user.user_metadata?.full_name || 
+                       user.user_metadata?.name || 
+                       user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
+                       'User'}
                     </span>
                   </button>
 
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-brand-navy/95 backdrop-blur-xl rounded-lg shadow-xl border border-brand-purple/30 z-50">
+                    <div className="absolute right-0 mt-2 w-56 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-700/50 z-50">
                       <div className="py-2">
-                        <div className="px-4 py-2 text-sm text-brand-gray-text border-b border-brand-purple/20">
-                          <p className="font-medium text-brand-white">{user.email}</p>
+                        {/* User Info */}
+                        <div className="px-4 py-3 border-b border-gray-700/50">
+                          <p className="font-semibold text-white text-sm mb-1">
+                            {user.user_metadata?.full_name || 
+                             user.user_metadata?.name || 
+                             user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
+                             'User'}
+                          </p>
+                          <p className="text-xs text-gray-400">{user.email}</p>
                         </div>
+                        
+                        {/* Upgrade to Pro */}
+                        <button
+                          onClick={() => {
+                            // TODO: Enable upgrade functionality later
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-brand-pink hover:bg-gray-700/50 transition-colors flex items-center space-x-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Upgrade to Pro</span>
+                        </button>
+                        
+                        <div className="border-t border-gray-700/50 my-1"></div>
+                        
+                        {/* Sign Out */}
                         <button
                           onClick={handleSignOut}
-                          className="w-full text-left px-4 py-2 text-sm text-brand-gray-text hover:bg-brand-black/50 hover:text-brand-white transition-colors flex items-center space-x-2"
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors flex items-center space-x-2"
                         >
                           <LogOut className="w-4 h-4" />
-                          <span>Sign Out</span>
+                          <span>Sign out</span>
                         </button>
                       </div>
                     </div>
@@ -242,28 +305,28 @@ export default function Dashboard() {
                 <Link
                   href="/dashboard"
                   onClick={() => setShowMobileMenu(false)}
-                  className="px-4 py-2 rounded-lg font-medium text-brand-white bg-brand-purple/20 border border-brand-purple/30"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-white bg-brand-purple/20"
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href="/resumes"
                   onClick={() => setShowMobileMenu(false)}
-                  className="px-4 py-2 rounded-lg font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50"
                 >
                   Resumes
                 </Link>
                 <Link
                   href="/review"
                   onClick={() => setShowMobileMenu(false)}
-                  className="px-4 py-2 rounded-lg font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50"
                 >
                   AI Analysis
                 </Link>
                 <Link
                   href="/create"
                   onClick={() => setShowMobileMenu(false)}
-                  className="px-4 py-2 rounded-lg font-medium text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light border border-brand-purple-light/20"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light"
                 >
                   <Plus className="w-4 h-4 inline mr-2" />
                   New Resume
@@ -276,9 +339,9 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
         <div className="mb-8">
-          <h1 className="text-4xl sm:text-5xl font-black text-brand-white mb-2 gradient-text">My Resumes</h1>
+          <h1 className="text-4xl sm:text-5xl font-black text-brand-white mb-2 gradient-text">Dashboard</h1>
           <p className="text-brand-gray-text text-lg">
-            Manage all your resume versions and track their ATS scores.
+            Track your resume performance and optimize for ATS systems.
           </p>
         </div>
 
@@ -305,8 +368,255 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {resumes.map((resume) => (
+          <>
+            {/* Statistics Cards */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+              <div className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-brand-gray-text text-sm mb-1">Total Resumes</p>
+                      <p className="text-3xl font-bold text-brand-white">{stats.totalResumes}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-brand-purple/20 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-brand-purple-light" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-brand-gray-text text-sm mb-1">Average ATS Score</p>
+                      <p className="text-3xl font-bold text-brand-white">{stats.averageScore}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-brand-cyan/20 flex items-center justify-center">
+                      <BarChart3 className="w-6 h-6 text-brand-cyan" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-brand-gray-text text-sm mb-1">Highest Score</p>
+                      <p className="text-3xl font-bold text-brand-white">{stats.highestScore || 'N/A'}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-brand-green/20 flex items-center justify-center">
+                      <Award className="w-6 h-6 text-brand-green" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-brand-gray-text text-sm mb-1">In Hiring Zone</p>
+                      <p className="text-3xl font-bold text-brand-white">{stats.inHiringZone}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-brand-green/20 flex items-center justify-center">
+                      <Target className="w-6 h-6 text-brand-green" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid gap-6 lg:grid-cols-3 mb-8">
+              {/* Hiring Zone Chart */}
+              <div className="lg:col-span-1 card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <h2 className="card-title text-brand-white text-xl mb-4 gradient-text">
+                    Hiring Zone
+                  </h2>
+                  <div className="flex justify-center">
+                    <HiringZoneChart score={stats.averageScore || 0} size={220} />
+                  </div>
+                  <p className="text-center text-brand-gray-text text-sm mt-4">
+                    Your average ATS score across all resumes
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="lg:col-span-1 card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <h2 className="card-title text-brand-white text-xl mb-4 gradient-text">
+                    Quick Actions
+                  </h2>
+                  <div className="space-y-3">
+                    <Link
+                      href="/create"
+                      className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-lg border border-brand-purple-light/20 group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Plus className="w-5 h-5 text-white" />
+                        <span className="font-bold text-white">Create New Resume</span>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                    <Link
+                      href="/review"
+                      className="flex items-center justify-between p-4 rounded-xl bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30 transition-all duration-300 group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Sparkles className="w-5 h-5 text-brand-cyan" />
+                        <span className="font-medium text-brand-white">AI Resume Analysis</span>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-brand-gray-text group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                    <Link
+                      href="/resumes"
+                      className="flex items-center justify-between p-4 rounded-xl bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30 transition-all duration-300 group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="w-5 h-5 text-brand-cyan" />
+                        <span className="font-medium text-brand-white">View All Resumes</span>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-brand-gray-text group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Insights */}
+              <div className="lg:col-span-1 card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
+                <div className="card-body">
+                  <h2 className="card-title text-brand-white text-xl mb-4 gradient-text">
+                    Performance Insights
+                  </h2>
+                  <div className="space-y-4">
+                    {stats.bestResume && (
+                      <div className="p-3 rounded-lg bg-brand-green/10 border border-brand-green/30">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Award className="w-4 h-4 text-brand-green" />
+                          <span className="text-sm font-semibold text-brand-green">Best Performing</span>
+                        </div>
+                        <p className="text-brand-white font-medium text-sm">{stats.bestResume.title}</p>
+                        <p className="text-brand-gray-text text-xs mt-1">Score: {stats.bestResume.ats_score}/100</p>
+                        <Link
+                          href={`/create?id=${stats.bestResume.id}`}
+                          className="text-brand-cyan text-xs hover:underline mt-2 inline-block"
+                        >
+                          View Details →
+                        </Link>
+                      </div>
+                    )}
+                    {stats.needsAttention.length > 0 && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Target className="w-4 h-4 text-red-400" />
+                          <span className="text-sm font-semibold text-red-400">Needs Attention</span>
+                        </div>
+                        <p className="text-brand-white font-medium text-sm">
+                          {stats.needsAttention.length} resume{stats.needsAttention.length > 1 ? 's' : ''} below 60
+                        </p>
+                        <p className="text-brand-gray-text text-xs mt-1">
+                          Consider optimizing these resumes
+                        </p>
+                      </div>
+                    )}
+                    {stats.inHiringZone > 0 && (
+                      <div className="p-3 rounded-lg bg-brand-green/10 border border-brand-green/30">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <TrendingUp className="w-4 h-4 text-brand-green" />
+                          <span className="text-sm font-semibold text-brand-green">Great Progress!</span>
+                        </div>
+                        <p className="text-brand-white font-medium text-sm">
+                          {stats.inHiringZone} resume{stats.inHiringZone > 1 ? 's' : ''} in hiring zone
+                        </p>
+                        <p className="text-brand-gray-text text-xs mt-1">
+                          These resumes are ATS-optimized
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30 mb-8">
+              <div className="card-body">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="card-title text-brand-white text-xl gradient-text">
+                    Recent Activity
+                  </h2>
+                  <Link
+                    href="/resumes"
+                    className="text-brand-cyan text-sm hover:underline flex items-center space-x-1"
+                  >
+                    <span>View All</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {stats.recentResumes.map((resume) => (
+                    <div
+                      key={resume.id}
+                      className="p-4 rounded-lg bg-brand-black/50 border border-brand-purple/20 hover:border-brand-cyan/50 transition-all duration-300"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-brand-white font-semibold text-sm flex-1">{resume.title}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          resume.ats_score === null || resume.ats_score === undefined
+                            ? 'bg-brand-navy/50 text-brand-gray-text border border-brand-purple/30'
+                            : resume.ats_score >= 80
+                            ? 'bg-brand-green/20 text-brand-green border border-brand-green/50'
+                            : resume.ats_score >= 60
+                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/50'
+                        }`}>
+                          {resume.ats_score || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs text-brand-gray-text mb-3">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatDate(resume.updated_at || resume.created_at)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Link
+                          href={`/create?id=${resume.id}`}
+                          className="text-xs text-brand-cyan hover:underline flex items-center space-x-1"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span>Edit</span>
+                        </Link>
+                        <Link
+                          href={`/resume/${resume.id}`}
+                          className="text-xs text-brand-cyan hover:underline flex items-center space-x-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>View</span>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* All Resumes Section */}
+            <div id="resumes" className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-brand-white gradient-text">All Resumes</h2>
+                <Link
+                  href="/create"
+                  className="px-6 py-2.5 rounded-xl font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple border-2 border-brand-pink/30 flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Resume</span>
+                </Link>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {resumes.map((resume) => (
               <div key={resume.id} className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-brand-purple/30 hover:border-brand-cyan/50 hover:scale-[1.02]">
                 <div className="card-body">
                   <h2 className="card-title text-brand-white text-lg font-bold">
@@ -384,7 +694,9 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-          </div>
+              </div>
+            </div>
+          </>
         )}
 
         <div className="mt-12 card bg-brand-navy/80 backdrop-blur-xl shadow-2xl border border-brand-purple/30">

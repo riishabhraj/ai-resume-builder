@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
 import { FileText, Plus, Upload, Edit2, Trash2, Download, Loader2, BarChart3, Linkedin, Github, Target, GripVertical, CheckCircle, AlertCircle, Save, Copy } from 'lucide-react';
+import { CreatePageSkeleton } from '@/components/skeletons/CreatePageSkeleton';
 import {
   DndContext,
   closestCenter,
@@ -252,19 +253,20 @@ function CreateResumeContent() {
       }
     } else if (!resumeIdFromUrl && user) {
       // No resume ID in URL - this is a new resume
-      // Reset the store to ensure no stale data triggers auto-save
-      if (resumeId !== null || hasLoadedResumeRef.current) {
-        // Only reset if we have a resumeId in store or have loaded before
-        // This prevents resetting on every render
+      // ALWAYS reset the store to ensure no stale data triggers auto-save
+      // This prevents duplicate resumes from being created
+      if (resumeId !== null || hasLoadedResumeRef.current || sections.length > 1 || title) {
+        // Reset if we have any resume data in the store
         resetResume();
         setResumeId(null);
+        setTitle(null); // Explicitly clear title to prevent stale data
         hasLoadedResumeRef.current = false;
         lastResumeIdRef.current = null;
       }
     }
     // Only depend on resumeIdFromUrl, initialized, user, isMounted, and resumeId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeIdFromUrl, initialized, user, isMounted, resumeId, resetResume, setResumeId]);
+  }, [resumeIdFromUrl, initialized, user, isMounted]);
 
   // Track unsaved changes and auto-save
   useEffect(() => {
@@ -419,11 +421,7 @@ function CreateResumeContent() {
   // Show loading until mounted - AFTER all hooks are called
   // This ensures server and client render the same initial state
   if (typeof window === 'undefined' || !isMounted) {
-    return (
-      <div className="h-screen flex items-center justify-center animated-gradient aurora" data-theme="atsbuilder" suppressHydrationWarning>
-        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
-      </div>
-    );
+    return <CreatePageSkeleton />;
   }
 
   // Manual save handler
@@ -2405,11 +2403,7 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
 
 export default function CreateResume() {
   return (
-    <Suspense fallback={
-      <div className="h-screen flex items-center justify-center animated-gradient aurora" data-theme="atsbuilder">
-        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
-      </div>
-    }>
+    <Suspense fallback={<CreatePageSkeleton />}>
       <CreateResumeContent />
     </Suspense>
   );

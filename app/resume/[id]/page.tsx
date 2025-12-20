@@ -7,6 +7,7 @@ import { FileText, Download, Loader2, CheckCircle, AlertCircle, Edit2, BarChart3
 import { getATSRecommendations } from '@/lib/ats-scorer';
 import type { ResumeVersion, ResumeAnalysis, StructuredResumeSection } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
+import { ResumeDetailSkeleton } from '@/components/skeletons/ResumeDetailSkeleton';
 
 export default function ResumePage() {
   const params = useParams();
@@ -111,11 +112,7 @@ export default function ResumePage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-cyan animate-spin" />
-      </div>
-    );
+    return <ResumeDetailSkeleton />;
   }
 
   if (!resume) {
