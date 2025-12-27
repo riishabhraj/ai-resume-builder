@@ -7,15 +7,24 @@ import { jobCategories, getCategoryById } from '@/lib/job-categories';
 import Link from 'next/link';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import type { AnalysisResult } from '@/lib/types/analysis';
-import { getScoreColor, getScoreGradient, getBarColor } from '@/lib/utils/scoring';
+import { getScoreColor, getScoreGradient, getBarColor, getScoreGradientColors } from '@/lib/utils/scoring';
 import { ReviewPageSkeleton } from '@/components/skeletons/ReviewPageSkeleton';
 import { mapSuggestionCategory, mapSectionToCategory } from '@/lib/utils/categoryMapping';
+import { useAuthStore } from '@/stores/authStore';
 
 type Step = 'upload' | 'category' | 'field' | 'experience' | 'analyzing' | 'results';
 
 export default function ReviewPage() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  const { user, initialized, initialize } = useAuthStore();
+  
+  // Initialize auth
+  useEffect(() => {
+    if (!initialized) {
+      initialize();
+    }
+  }, [initialized, initialize]);
   
   // Ensure component only renders fully on client side
   useEffect(() => {
@@ -28,6 +37,13 @@ export default function ReviewPage() {
       router.push('/waitlist');
     }
   }, [router, isMounted]);
+  
+  // Redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (initialized && !user) {
+      router.push('/sign-in?redirect=/review');
+    }
+  }, [initialized, user, router]);
   
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
@@ -70,7 +86,7 @@ export default function ReviewPage() {
         }
         return prev;
       });
-    }, 12000); // Change stage every 12 seconds (60s total / 5 stages)
+    }, 10000); // Change stage every 10 seconds (50s total / 5 stages)
 
     return () => clearInterval(interval);
   }, [step]);
@@ -201,8 +217,13 @@ export default function ReviewPage() {
     }
   };
 
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!isMounted) {
+  // Show loading state while checking authentication
+  if (!isMounted || !initialized) {
+    return <ReviewPageSkeleton />;
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!user) {
     return <ReviewPageSkeleton />;
   }
 
@@ -515,65 +536,75 @@ export default function ReviewPage() {
                 {/* Progress Stages */}
                 <div className="w-full max-w-lg space-y-3">
                   {analyzingStages.map((stage, index) => {
-                      const isActive = index <= currentStage;
-                      const isCurrent = index === currentStage;
                       const isCompleted = index < currentStage;
+                      const isCurrent = index === currentStage;
+                      const isUpcoming = index > currentStage;
                       
                       return (
                         <div
                           key={index}
-                          className={`flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all duration-500 ${
+                          className={`flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all duration-700 ${
                             isCurrent
                               ? 'bg-gradient-to-r from-brand-cyan/20 to-brand-purple/20 border-brand-cyan/50 shadow-lg shadow-brand-cyan/20 scale-[1.02]'
                               : isCompleted
-                              ? 'bg-gray-800/70 border-brand-cyan/30 shadow-md'
-                              : 'bg-gray-800/50 border-gray-700/50'
+                              ? 'bg-gray-800/70 border-green-500/30'
+                              : 'bg-gray-800/20 border-gray-700/20 opacity-40'
                           }`}
                         >
-                          <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all duration-500 ${
+                          <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all duration-700 ${
                             isCurrent
-                              ? 'bg-brand-cyan/30 scale-110 shadow-lg shadow-brand-cyan/30'
+                              ? 'bg-brand-cyan/30 scale-110 shadow-lg shadow-brand-cyan/50 animate-pulse'
                               : isCompleted
-                              ? 'bg-brand-cyan/20'
-                              : 'bg-gray-700/50'
+                              ? 'bg-green-500/30 text-green-400'
+                              : 'bg-gray-700/20 grayscale opacity-50'
                           }`}>
-                            {stage.icon}
+                            {isCompleted ? '✓' : stage.icon}
                           </div>
                           <div className="flex-1">
-                            <p className={`font-semibold text-sm transition-colors duration-500 ${
-                              isActive ? 'text-white' : 'text-gray-500'
-                            }`}>
-                              {stage.label}
-                              {isCurrent && (
-                                <span className="ml-2 text-brand-cyan animate-pulse">●</span>
+                            <div className="flex items-center justify-between">
+                              <p className={`font-semibold text-sm transition-colors duration-700 ${
+                                isCurrent ? 'text-white' : isCompleted ? 'text-gray-300' : 'text-gray-600'
+                              }`}>
+                                {stage.label}
+                                {isCurrent && (
+                                  <span className="ml-2 text-brand-cyan animate-pulse">●</span>
+                                )}
+                              </p>
+                              {isCompleted && (
+                                <span className="text-green-400 text-xs font-semibold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Done
+                                </span>
                               )}
-                            </p>
-                            <p className={`text-xs mt-0.5 transition-colors duration-500 ${
-                              isActive ? 'text-gray-400' : 'text-gray-600'
+                            </div>
+                            <p className={`text-xs mt-0.5 transition-colors duration-700 ${
+                              isCurrent ? 'text-gray-300' : isCompleted ? 'text-gray-500' : 'text-gray-700'
                             }`}>
                               {stage.description}
                             </p>
                             {isCurrent && (
-                              <div className="mt-2 w-full bg-gray-700 rounded-full h-1.5">
+                              <div className="mt-2 w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
                                 <div
-                                  className="rounded-full h-1.5 bg-gradient-to-r from-brand-cyan to-brand-purple transition-all duration-1000 animate-pulse"
-                                  style={{ width: '100%' }}
+                                  className="rounded-full h-1.5 bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink animate-pulse"
+                                  style={{ 
+                                    width: '100%',
+                                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                                  }}
                                 />
                               </div>
                             )}
                           </div>
-                          {isCompleted && (
-                            <CheckCircle2 className="w-6 h-6 text-brand-cyan flex-shrink-0" />
-                          )}
                         </div>
                       );
                     })}
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Results */}
-            {step === 'results' && analysis && (
+            {step === 'results' && analysis && (() => {
+              const [gradientFrom, gradientTo] = getScoreGradientColors(analysis.overallScore, 100);
+              return (
               <div className="space-y-5 mt-2">
                 {/* Top Banner */}
                 {analysis.scoreGap !== undefined && analysis.scoreGap > 0 && (
@@ -594,6 +625,12 @@ export default function ReviewPage() {
                 <div className="text-center bg-gray-800/50 rounded-2xl p-6 border border-gray-700">
                   <div className="inline-block relative">
                     <svg className="w-32 h-32 transform -rotate-90">
+                      <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor={gradientFrom} />
+                          <stop offset="100%" stopColor={gradientTo} />
+                        </linearGradient>
+                      </defs>
                       <circle
                         cx="64"
                         cy="64"
@@ -615,12 +652,6 @@ export default function ReviewPage() {
                         className="transition-all duration-1000"
                         strokeLinecap="round"
                       />
-                      <defs>
-                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor={analysis.overallScore >= 80 ? '#10b981' : analysis.overallScore >= 60 ? '#eab308' : '#ef4444'} />
-                          <stop offset="100%" stopColor={analysis.overallScore >= 80 ? '#059669' : analysis.overallScore >= 60 ? '#ea580c' : '#dc2626'} />
-                        </linearGradient>
-                      </defs>
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className={`text-4xl font-bold ${getScoreColor(analysis.overallScore, 100)}`}>
@@ -630,13 +661,13 @@ export default function ReviewPage() {
                     </div>
                   </div>
                   <p className={`mt-3 text-sm font-medium ${
-                    analysis.overallScore >= 80 ? 'text-green-400' : 
-                    analysis.overallScore >= 60 ? 'text-yellow-400' : 
+                    analysis.overallScore >= 90 ? 'text-green-400' : 
+                    analysis.overallScore >= 70 ? 'text-yellow-400' : 
                     'text-red-400'
                   }`}>
                     {analysis.summaryFeedback || (
-                      analysis.overallScore >= 80 ? '🎉 Excellent! Your resume is highly competitive.' :
-                      analysis.overallScore >= 60 ? '👍 Good! Some improvements will make it stand out.' :
+                      analysis.overallScore >= 90 ? '🎉 Excellent! Your resume is highly competitive.' :
+                      analysis.overallScore >= 70 ? '👍 Good! Some improvements will make it stand out.' :
                       '📈 Needs improvement. Follow suggestions below.'
                     )}
                   </p>
@@ -680,9 +711,9 @@ export default function ReviewPage() {
                                 {score}/{max}
                               </span>
                             </div>
-                            <div className="w-full bg-gray-700 rounded-full h-1.5 mb-2">
+                            <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
                               <div
-                                className={`h-1.5 rounded-full ${getBarColor(score, max)} transition-all duration-1000`}
+                                className={`h-2 rounded-full ${getBarColor(score, max)} transition-all duration-1000`}
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
@@ -696,7 +727,8 @@ export default function ReviewPage() {
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* Detailed Feedback Modal */}
             {showDetailedFeedback && analysis && (
@@ -896,9 +928,9 @@ export default function ReviewPage() {
                                         {score}/{max}
                                       </span>
                                     </div>
-                                    <div className="w-full bg-gray-700 rounded-full h-1.5 mb-3">
+                                    <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
                                       <div
-                                        className={`h-1.5 rounded-full ${getBarColor(score, max)} transition-all duration-1000`}
+                                        className={`h-2 rounded-full ${getBarColor(score, max)} transition-all duration-1000`}
                                         style={{ width: `${percentage}%` }}
                                       />
                                     </div>
@@ -995,11 +1027,11 @@ export default function ReviewPage() {
                                                 <span className="text-gray-400 font-medium">{suggestionObj.impact}</span>
                                               </div>
                                             </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
                                     {allStrengths.length === 0 && allSuggestions.length === 0 && (
                                       <p className="text-gray-400 text-xs text-center py-2">No specific feedback available for this category.</p>

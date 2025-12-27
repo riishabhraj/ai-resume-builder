@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { calculateATSScore } from '@/lib/ats-scorer';
 import { getLatexTemplate, populateLatexTemplate, formatExperiencesForLatex, formatExperiencesFromFormData, escapeLatex } from '@/lib/latex-utils';
-import type { ResumeFormData, GeneratedResume, ExperienceItem, ResumeSection } from '@/lib/types';
+import type { ResumeFormData, GeneratedResume, ExperienceItem, ResumeSection, StructuredResumeSection } from '@/lib/types';
 
 const LLM_PROVIDER = process.env.LLM_PROVIDER || 'openai';
 
@@ -81,6 +81,141 @@ async function callLLM(prompt: string): Promise<GeneratedResume> {
   }
 
   throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
+}
+
+/**
+ * Convert legacy ResumeSection[] format to StructuredResumeSection[] format
+ * This ensures compatibility with the database schema and other API endpoints
+ */
+function convertToStructuredSections(
+  legacySections: ResumeSection[],
+  formData: ResumeFormData
+): StructuredResumeSection[] {
+  const structuredSections: StructuredResumeSection[] = [];
+
+  // Add personal info section first (always required)
+  structuredSections.push({
+    id: 'personal-info',
+    type: 'personal-info',
+    title: 'Personal Information',
+    content: {
+      fullName: formData.fullName || '',
+      title: formData.title || '',
+      email: formData.email || '',
+      phone: '',
+      location: formData.location || '',
+      linkedin: '',
+      github: '',
+      website: '',
+    },
+  });
+
+  // Convert each legacy section to structured format
+  legacySections.forEach((section, index) => {
+    const title = section.title.toLowerCase();
+
+    if (title.includes('summary')) {
+      structuredSections.push({
+        id: `professional-summary-${index}`,
+        type: 'professional-summary',
+        title: section.title,
+        content: {
+          text: Array.isArray(section.items) && section.items.length > 0
+            ? (typeof section.items[0] === 'string' ? section.items[0] : '')
+            : '',
+        },
+      });
+    } else if (title.includes('experience') || title.includes('work')) {
+      const experiences = Array.isArray(section.items)
+        ? section.items
+            .filter((item): item is { heading: string; bullets: string[] } => 
+              typeof item === 'object' && 'heading' in item && 'bullets' in item
+            )
+            .map((item, expIndex) => {
+              // Parse heading: "Role — Company (Start - End)"
+              const headingMatch = item.heading.match(/(.+?)\s*—\s*(.+?)\s*\((.+?)\s*-\s*(.+?)\)/);
+              return {
+                id: `exp-${index}-${expIndex}`,
+                company: headingMatch ? headingMatch[2].trim() : '',
+                role: headingMatch ? headingMatch[1].trim() : item.heading,
+                location: '',
+                startDate: headingMatch ? headingMatch[3].trim() : '',
+                endDate: headingMatch ? headingMatch[4].trim() : '',
+                bullets: item.bullets.map((bullet, bulletIndex) => ({
+                  id: `bullet-${index}-${expIndex}-${bulletIndex}`,
+                  text: bullet,
+                })),
+              };
+            })
+        : [];
+
+      structuredSections.push({
+        id: `experience-${index}`,
+        type: 'experience',
+        title: section.title,
+        content: experiences,
+      });
+    } else if (title.includes('skill')) {
+      const skillsText = Array.isArray(section.items) && section.items.length > 0
+        ? (typeof section.items[0] === 'string' ? section.items[0] : '')
+        : '';
+
+      // Split skills into categories if possible
+      const categories = skillsText.split('\n')
+        .filter(line => line.trim())
+        .map((line, catIndex) => ({
+          id: `skill-cat-${index}-${catIndex}`,
+          name: `Skills ${catIndex + 1}`,
+          keywords: line.split(',').map(s => s.trim()).filter(s => s),
+        }));
+
+      structuredSections.push({
+        id: `skills-${index}`,
+        type: 'skills',
+        title: section.title,
+        content: {
+          categories: categories.length > 0 ? categories : [{
+            id: `skill-cat-${index}-0`,
+            name: 'Skills',
+            keywords: [skillsText],
+          }],
+        },
+      });
+    } else if (title.includes('education')) {
+      const educationText = Array.isArray(section.items) && section.items.length > 0
+        ? (typeof section.items[0] === 'string' ? section.items[0] : '')
+        : '';
+
+      structuredSections.push({
+        id: `education-${index}`,
+        type: 'education',
+        title: section.title,
+        content: [{
+          id: `edu-${index}-0`,
+          institution: educationText.split('\n')[0] || educationText,
+          degree: '',
+          field: '',
+          startDate: '',
+          endDate: '',
+          location: '',
+        }],
+      });
+    } else {
+      // Generic section - treat as professional summary
+      structuredSections.push({
+        id: `section-${index}`,
+        type: 'professional-summary',
+        title: section.title,
+        content: {
+          text: Array.isArray(section.items)
+            ? section.items.map(item => typeof item === 'string' ? item : item.heading).join('\n')
+            : '',
+        },
+      });
+    }
+  });
+
+  return structuredSections;
 }
 
 /**
@@ -170,6 +305,9 @@ export async function POST(request: NextRequest) {
     // Use form data directly - no AI needed for basic resume creation
     const generatedResume = generateResumeFromFormData(formData);
 
+    // Convert legacy sections to structured format
+    const structuredSections = convertToStructuredSections(generatedResume.sections, formData);
+
     // Calculate ATS score (no job description needed for basic scoring)
     const atsScore = calculateATSScore(generatedResume.plain_text_resume);
 
@@ -242,7 +380,7 @@ export async function POST(request: NextRequest) {
         ats_score: atsScore,
         status: 'draft',
         template_id: templateId || null,
-        sections_data: generatedResume.sections || null,
+        sections_data: structuredSections, // Use structured format
       })
       .select()
       .single();
@@ -261,7 +399,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       resumeId: resume.id,
-      sections: generatedResume.sections,
+      sections: structuredSections, // Return structured format
       atsScore,
     });
   } catch (error) {

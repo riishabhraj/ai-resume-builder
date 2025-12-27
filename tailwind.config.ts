@@ -6,6 +6,19 @@ const config: Config = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './lib/**/*.{js,ts,jsx,tsx}',
+  ],
+  safelist: [
+    // Score colors for progress bars
+    'bg-green-500',
+    'bg-yellow-500',
+    'bg-red-500',
+    'text-green-500',
+    'text-yellow-500',
+    'text-red-500',
+    'text-green-400',
+    'text-yellow-400',
+    'text-red-400',
   ],
   theme: {
     extend: {

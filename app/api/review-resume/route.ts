@@ -157,12 +157,25 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
     // Parse JSON response
     let analysis: ATSAnalysisResult;
     try {
-      const jsonMatch = analysisText.match(/```json\n?([\s\S]*?)\n?```/) || 
-                       analysisText.match(/\{[\s\S]*\}/);
-      const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : analysisText;
+      // Handle markdown code blocks and extract JSON
+      let jsonText = analysisText.trim();
+      
+      // Try to extract JSON from markdown code blocks
+      const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        jsonText = codeBlockMatch[1].trim();
+      } else {
+        // Try to extract just the JSON object
+        const jsonObjectMatch = jsonText.match(/\{[\s\S]*\}/);
+        if (jsonObjectMatch) {
+          jsonText = jsonObjectMatch[0];
+        }
+      }
+      
       analysis = JSON.parse(jsonText);
     } catch (parseError) {
       console.error('Failed to parse AI response:', analysisText);
+      console.error('Parse error:', parseError);
       throw new Error('Failed to parse analysis results');
     }
 
