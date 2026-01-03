@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import Marquee from 'react-fast-marquee';
-import { FileText, Zap, Target, CheckCircle, BarChart3 } from 'lucide-react';
+import { FileText, Zap, Target, CheckCircle, BarChart3, Check, X, Sparkles, Crown, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import WaitlistForm from '@/components/WaitlistForm';
@@ -40,12 +40,25 @@ export default function Home() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2 group cursor-pointer">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
-                <FileText className="w-5 h-5 text-white" />
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-2 group cursor-pointer">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-bold gradient-text">ResuCraft</span>
               </div>
-              <span className="text-xl font-bold gradient-text">ResuCraft</span>
+              
+              {/* Navigation Links */}
+              <nav className="hidden md:flex items-center space-x-6">
+                <a href="#features" className="text-sm font-medium text-brand-gray-text hover:text-brand-white transition-colors">
+                  Features
+                </a>
+                <a href="#pricing" className="text-sm font-medium text-brand-gray-text hover:text-brand-white transition-colors">
+                  Pricing
+                </a>
+              </nav>
             </div>
+            
             <Link href="/sign-in?redirect=/dashboard" className="group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple">
               <span className="flex items-center">
                 Get Started
@@ -322,6 +335,231 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing Section */}
+        <section id="pricing" className="py-24 relative overflow-hidden">
+          <div className="absolute inset-0">
+            <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-brand-purple/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-brand-cyan/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          </div>
+          
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl sm:text-5xl font-black text-brand-white mb-4">
+                Choose Your <span className="gradient-text">Plan</span>
+              </h2>
+              <p className="text-lg text-brand-gray-text max-w-2xl mx-auto">
+                Start free, upgrade when you need unlimited power
+              </p>
+            </div>
+            
+            <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {/* Free Plan */}
+              <div className="relative p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-purple/30 hover:border-brand-purple/50 shadow-xl hover:shadow-2xl transition-all duration-500 backdrop-blur-sm">
+                <div className="mb-6">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Rocket className="w-6 h-6 text-brand-purple-light" />
+                    <h3 className="text-2xl font-black text-brand-white">Free</h3>
+                  </div>
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-5xl font-black text-brand-white">$0</span>
+                    <span className="text-brand-gray-text">/month</span>
+                  </div>
+                  <p className="text-brand-gray-text mt-2">Perfect for trying out</p>
+                </div>
+                
+                <Link
+                  href="/sign-in?redirect=/dashboard"
+                  className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-lg mb-6"
+                >
+                  Get Started Free
+                </Link>
+                
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-green mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">3 resumes per month</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-green mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">2 AI reviews per month</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-green mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">1 professional template</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-green mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Basic ATS score</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-green mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">PDF download</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <X className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm line-through opacity-50">AI tailoring</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <X className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm line-through opacity-50">Cover letter AI</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <X className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm line-through opacity-50">Version history</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pro Plan - Most Popular */}
+              <div className="relative p-8 rounded-3xl bg-gradient-to-br from-brand-purple/20 to-brand-pink/20 border-2 border-brand-cyan shadow-2xl hover:shadow-3xl transition-all duration-500 backdrop-blur-sm transform scale-105 lg:scale-110">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-brand-cyan to-brand-purple text-white text-sm font-bold shadow-lg">
+                  Most Popular
+                </div>
+                
+                <div className="mb-6">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Sparkles className="w-6 h-6 text-brand-cyan" />
+                    <h3 className="text-2xl font-black text-brand-white">Pro</h3>
+                  </div>
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-5xl font-black gradient-text">$12</span>
+                    <span className="text-brand-gray-text">/month</span>
+                  </div>
+                  <p className="text-brand-cyan-light mt-2 font-semibold">For active job seekers</p>
+                </div>
+                
+                <Link
+                  href="/pricing"
+                  className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-xl glow-cyan mb-6"
+                >
+                  Upgrade to Pro
+                </Link>
+                
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Unlimited resumes</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Unlimited AI reviews</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Complete ATS breakdown</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">AI resume tailoring</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">AI bullet enhancement</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Cover letter generator</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Version history</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">DOCX & TXT export</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Priority support</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pro Plus Plan */}
+              <div className="relative p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-pink/30 hover:border-brand-pink/50 shadow-xl hover:shadow-2xl transition-all duration-500 backdrop-blur-sm">
+                <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold shadow-lg">
+                  Save 33%
+                </div>
+                
+                <div className="mb-6">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Crown className="w-6 h-6 text-brand-pink" />
+                    <h3 className="text-2xl font-black text-brand-white">Pro Plus</h3>
+                  </div>
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-5xl font-black text-brand-white">$48</span>
+                    <span className="text-brand-gray-text">/6 months</span>
+                  </div>
+                  <p className="text-brand-pink-light mt-2 font-semibold">$8/month • Best value</p>
+                </div>
+                
+                <Link
+                  href="/pricing"
+                  className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-lg mb-6"
+                >
+                  Get Pro Plus
+                </Link>
+                
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-white text-sm font-semibold">Everything in Pro</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Save 33% vs monthly</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">1 free human review</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Priority processing</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Early access features</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Job tracker (coming soon)</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Locked-in pricing</span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
+                    <span className="text-brand-gray-text text-sm">Career resources</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* FAQ or Trust Badges */}
+            <div className="mt-16 text-center">
+              <p className="text-brand-gray-text text-sm mb-4">
+                All plans include secure payment processing and can be cancelled anytime
+              </p>
+              <div className="flex items-center justify-center space-x-8 text-xs text-brand-gray-dark">
+                <div className="flex items-center space-x-2">
+                  <Check className="w-4 h-4 text-brand-green" />
+                  <span>Secure checkout</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Check className="w-4 h-4 text-brand-green" />
+                  <span>Cancel anytime</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Check className="w-4 h-4 text-brand-green" />
+                  <span>Instant access</span>
                 </div>
               </div>
             </div>

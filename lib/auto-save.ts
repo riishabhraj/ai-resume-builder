@@ -102,6 +102,14 @@ export function useAutoSave() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
+        // Check if it's a limit reached error
+        if (response.status === 403 && errorData.upgradeRequired) {
+          console.warn('Resume limit reached:', errorData.message);
+          setSaveStatus('error');
+          // Don't throw error, just log it - user will see upgrade modal
+          return;
+        }
+        
         // If resume not found and we have a resumeId, clear it to prevent duplicates
         if (response.status === 404 && resumeId && errorData.clearResumeId) {
           console.log('Resume not found, clearing resumeId from store');
@@ -126,15 +134,10 @@ export function useAutoSave() {
       }
 
       // Update title from server response to ensure consistency
-      // BUT: For new resumes, always use "Untitled Resume" and don't overwrite with auto-generated titles
       if (data.resume && data.resume.title !== undefined) {
-        // For NEW resumes (no resumeId before save), always set to "Untitled Resume"
-        // This prevents using stale personal info to generate titles
-        if (!resumeId) {
-          // New resume - always use "Untitled Resume" regardless of what API returned
-          setTitle('Untitled Resume');
-        } else {
-          // Existing resume - use the title from API
+        // Only update title if user hasn't set one (null or undefined in store)
+        // This preserves user-set titles, including empty strings
+        if (title === null || title === undefined) {
           setTitle(data.resume.title);
         }
       }

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { generateEmbedding, hasOpenAI } from '@/lib/embeddings';
 import { getCategoryById, getFieldById, getExperienceLevelById } from '@/lib/job-categories';
 import type { AnalysisResult } from '@/lib/types/analysis';
+import { FREE_TIER_LIMITS, hasProFeatures } from '@/lib/razorpay';
 // @ts-ignore
 import pdf from 'pdf-parse';
 
@@ -190,6 +191,39 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
         } = await supabaseClient.auth.getUser();
 
         if (!authError && user) {
+          // Check usage limits for free tier users
+          // Use atomic counter increment to prevent race conditions
+          const { data: result, error: rpcError } = await supabaseClient.rpc(
+            'increment_review_counter',
+            {
+              p_user_id: user.id,
+              p_limit: FREE_TIER_LIMITS.reviews_per_month,
+            }
+          );
+
+          if (rpcError) {
+            console.error('Error incrementing review counter:', rpcError);
+            return NextResponse.json(
+              { error: 'Failed to check usage limits' },
+              { status: 500 }
+            );
+          }
+
+          // If result is -1, limit was exceeded
+          if (result === -1) {
+            return NextResponse.json(
+              { 
+                error: 'Review limit reached',
+                message: `You've used ${FREE_TIER_LIMITS.reviews_per_month} AI reviews this month. Upgrade to Pro for unlimited reviews.`,
+                limitReached: true,
+                upgradeRequired: true,
+              },
+              { status: 403 }
+            );
+          }
+          
+          // Counter was successfully incremented, continue with review
+
           // Extract title from resume text
           // Try to find name in first few lines (common resume format)
           let title = 'Uploaded Resume';

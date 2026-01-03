@@ -129,7 +129,11 @@ function convertToStructuredSections(
       const experiences = Array.isArray(section.items)
         ? section.items
             .filter((item): item is { heading: string; bullets: string[] } => 
-              typeof item === 'object' && 'heading' in item && 'bullets' in item
+              typeof item === 'object' && 
+              item !== null &&
+              'heading' in item && 
+              'bullets' in item &&
+              Array.isArray(item.bullets)
             )
             .map((item, expIndex) => {
               // Parse heading: "Role — Company (Start - End)"
@@ -143,7 +147,7 @@ function convertToStructuredSections(
                 endDate: headingMatch ? headingMatch[4].trim() : '',
                 bullets: item.bullets.map((bullet, bulletIndex) => ({
                   id: `bullet-${index}-${expIndex}-${bulletIndex}`,
-                  text: bullet,
+                  text: typeof bullet === 'string' ? bullet : String(bullet),
                 })),
               };
             })

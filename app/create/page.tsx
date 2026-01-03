@@ -165,12 +165,19 @@ function CreateResumeContent() {
   
   // Load resume from URL if provided
   const loadResumeFromApi = useCallback(async (id: string) => {
+    console.log('=== loadResumeFromApi called ===');
+    console.log('Resume ID to load:', id);
+    console.log('Current store resumeId:', resumeId);
+    console.log('hasLoadedResumeRef:', hasLoadedResumeRef.current);
+    console.log('lastResumeIdRef:', lastResumeIdRef.current);
+    
     // Always load from API if:
     // 1. We haven't loaded this resume yet (different from last loaded)
     // 2. OR the store's resumeId doesn't match (stale data from localStorage)
     // This ensures we always get the latest data from the database
     if (hasLoadedResumeRef.current && lastResumeIdRef.current === id && resumeId === id) {
       // Already loaded this exact resume and store matches - skip
+      console.log('Skipping load: Already loaded this resume');
       return;
     }
 
@@ -179,20 +186,27 @@ function CreateResumeContent() {
     lastResumeIdRef.current = id;
 
     try {
+      console.log('Fetching resume from API...');
       const response = await fetch(`/api/resume/${id}`);
       if (!response.ok) throw new Error('Failed to load resume');
       
       const data = await response.json();
+      console.log('API Response:', data);
+      
       if (data.success && data.resume) {
+        console.log('Resume sections_data:', data.resume.sections_data);
+        console.log('Resume sections_data length:', data.resume.sections_data?.length || 0);
+        
         // Always load from API to ensure we have the latest data
         // This overwrites any stale data from localStorage
         loadResume({
           id: data.resume.id,
           title: data.resume.title ?? null, // Use nullish coalescing to preserve empty strings
-          sections: data.resume.sections || [],
+          sections: data.resume.sections_data || [],
           template_id: data.resume.template_id,
         });
         setResumeId(data.resume.id);
+        console.log('Resume loaded successfully');
       }
     } catch (error) {
       console.error('Error loading resume:', error);
@@ -277,7 +291,41 @@ function CreateResumeContent() {
     const isOnCreatePage = window.location.pathname === '/create';
     if (!isOnCreatePage) return; // Not on create page, skip auto-save
     
-    if (initialized && user && sections.length > 0 && !loadingResume) {
+    // CRITICAL: Don't auto-save while loading a resume from URL
+    // This prevents creating duplicate resumes when navigating to /create?id=xxx
+    if (loadingResume) {
+      console.log('Skipping auto-save: Resume is currently loading');
+      return;
+    }
+    
+    // CRITICAL: Don't auto-save if URL has an ID but it hasn't been loaded yet
+    // This prevents race condition where auto-save triggers before loadResumeFromApi completes
+    if (resumeIdFromUrl && resumeId !== resumeIdFromUrl) {
+      console.log('Skipping auto-save: Waiting for resume to load from URL', {
+        resumeIdFromUrl,
+        resumeId,
+        sections: sections.length,
+        title
+      });
+      return;
+    }
+    
+    // CRITICAL: If URL has an ID and sections are empty/default, wait for load
+    // This prevents saving empty data over an existing resume
+    if (resumeIdFromUrl && sections.length <= 1) {
+      const personalInfo = sections.find(s => s.type === 'personal-info');
+      const hasNoData = !personalInfo?.content?.fullName?.trim() &&
+                       !personalInfo?.content?.email?.trim() &&
+                       !personalInfo?.content?.phone?.trim() &&
+                       !title?.trim();
+      
+      if (hasNoData) {
+        console.log('Skipping auto-save: URL has ID but sections are empty, waiting for load');
+        return;
+      }
+    }
+    
+    if (initialized && user && sections.length > 0) {
       // Check if user has made meaningful changes before auto-saving
       const hasMeaningfulChanges = (() => {
         // If there's a resumeId, always allow auto-save (updating existing resume)
@@ -314,7 +362,7 @@ function CreateResumeContent() {
         triggerAutoSave();
       }
     }
-  }, [sections, selectedTemplate, title, initialized, user, triggerAutoSave, loadingResume, resumeId]);
+  }, [sections, selectedTemplate, title, initialized, user, triggerAutoSave, loadingResume, resumeId, resumeIdFromUrl]);
 
   useEffect(() => {
     if (saveStatus === 'saved') {

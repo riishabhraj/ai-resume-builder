@@ -1,6 +1,6 @@
 'use client';
 
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, BarChart3, X } from 'lucide-react';
+import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, BarChart3, X, User, LogOut, Sparkles } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { jobCategories, getCategoryById } from '@/lib/job-categories';
@@ -17,7 +17,8 @@ type Step = 'upload' | 'category' | 'field' | 'experience' | 'analyzing' | 'resu
 export default function ReviewPage() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  const { user, initialized, initialize } = useAuthStore();
+  const { user, initialized, initialize, signOut } = useAuthStore();
+  const [showUserMenu, setShowUserMenu] = useState(false);
   
   // Initialize auth
   useEffect(() => {
@@ -217,6 +218,29 @@ export default function ReviewPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
+  };
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showUserMenu && !target.closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   // Show loading state while checking authentication
   if (!isMounted || !initialized) {
     return <ReviewPageSkeleton />;
@@ -264,15 +288,83 @@ export default function ReviewPage() {
               </nav>
             </div>
 
-            <Link 
-              href="/create" 
-              className="group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple"
-            >
-              <span className="flex items-center">
-                Create Resume
-                <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
-              </span>
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/create" 
+                className="group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple"
+              >
+                <span className="flex items-center">
+                  Create Resume
+                  <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
+                </span>
+              </Link>
+
+              {/* User Menu */}
+              {user && (
+                <div className="relative user-menu-container">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30 transition-all duration-300"
+                  >
+                    {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
+                      <img
+                        src={user.user_metadata.avatar_url || user.user_metadata.picture}
+                        alt="User Avatar"
+                        className="w-8 h-8 rounded-full object-cover border-2 border-brand-purple/30"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-cyan to-brand-purple flex items-center justify-center border-2 border-brand-purple/30">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                    <span className="hidden md:block text-brand-white text-sm font-medium">
+                      {user.user_metadata?.full_name || 
+                       user.user_metadata?.name || 
+                       user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
+                       'User'}
+                    </span>
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-56 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-700/50 z-50">
+                      <div className="py-2">
+                        {/* User Info */}
+                        <div className="px-4 py-3 border-b border-gray-700/50">
+                          <p className="font-semibold text-white text-sm mb-1">
+                            {user.user_metadata?.full_name || 
+                             user.user_metadata?.name || 
+                             user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
+                             'User'}
+                          </p>
+                          <p className="text-xs text-gray-400">{user.email}</p>
+                        </div>
+                        
+                        {/* Upgrade to Pro */}
+                        <button
+                          onClick={() => {
+                            // TODO: Enable upgrade functionality later
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-brand-pink hover:bg-gray-700/50 transition-colors flex items-center space-x-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Upgrade to Pro</span>
+                        </button>
+                        
+                        {/* Sign Out */}
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full text-left px-4 py-2.5 text-sm text-brand-gray-text hover:bg-gray-700/50 hover:text-brand-white transition-colors flex items-center space-x-2"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Sign out</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

@@ -498,15 +498,42 @@ Return ONLY valid JSON, no additional text or markdown.`;
         // Normalize projects sections
         else if (tailoredSection.type === 'projects' && Array.isArray(originalSection.content)) {
           if (Array.isArray(tailoredSection.content)) {
-            normalizedContent = tailoredSection.content.map((proj: any, idx: number) => {
-              const originalProj = originalSection.content[idx] || {};
+            // Map AI projects to normalized format with original data
+            const normalizedAiProjects = tailoredSection.content.map((proj: any, idx: number) => {
+              // Find matching original project by index, name, or ID
+              const originalProj = originalSection.content[idx] || 
+                originalSection.content.find((op: any) => 
+                  (op.name && proj.name && op.name === proj.name) ||
+                  (op.id && proj.id && op.id === proj.id)
+                ) || {};
+              
               return {
-                id: originalProj.id || `proj-${Date.now()}-${idx}`,
+                id: originalProj.id || proj.id || `proj-${Date.now()}-${idx}`,
                 name: proj.name || originalProj.name || '',
                 description: proj.description || originalProj.description || '',
                 technologies: proj.technologies || originalProj.technologies || '',
                 url: proj.url || originalProj.url || ''
               };
+            });
+            
+            // BUG FIX: Preserve original projects that weren't in AI response
+            // Track which original projects were matched by AI
+            const matchedOriginalIds = new Set(
+              normalizedAiProjects.map((proj: any) => proj.id)
+            );
+            
+            // Add original projects that weren't matched
+            const preservedOriginalProjects = originalSection.content
+              .filter((origProj: any) => !matchedOriginalIds.has(origProj.id))
+              .map((origProj: any) => origProj); // Keep original structure
+            
+            // Combine normalized AI projects with preserved originals
+            normalizedContent = [...normalizedAiProjects, ...preservedOriginalProjects];
+            
+            console.log(`Normalized ${tailoredSection.type} section:`, {
+              originalCount: originalSection.content.length,
+              tailoredCount: tailoredSection.content?.length || 0,
+              normalizedCount: normalizedContent.length
             });
           } else {
             normalizedContent = originalSection.content;

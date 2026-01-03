@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { StructuredResumeSection } from '@/lib/types';
+import { FREE_TIER_LIMITS, hasProFeatures } from '@/lib/razorpay';
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,6 +54,42 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid sections structure. Each section must have id, type, title, and content.' },
         { status: 400 }
       );
+    }
+
+    // Check usage limits for NEW resumes (not updates)
+    // Use atomic counter increment to prevent race conditions
+    if (!resumeId) {
+      // Use database function with row-level locking to atomically check and increment
+      const { data: result, error: rpcError } = await supabase.rpc(
+        'increment_resume_counter',
+        {
+          p_user_id: user.id,
+          p_limit: FREE_TIER_LIMITS.resumes_per_month,
+        }
+      );
+
+      if (rpcError) {
+        console.error('Error incrementing resume counter:', rpcError);
+        return NextResponse.json(
+          { error: 'Failed to check usage limits' },
+          { status: 500 }
+        );
+      }
+
+      // If result is -1, limit was exceeded
+      if (result === -1) {
+        return NextResponse.json(
+          { 
+            error: 'Resume limit reached',
+            message: `You've created ${FREE_TIER_LIMITS.resumes_per_month} resumes this month. Upgrade to Pro for unlimited resumes.`,
+            limitReached: true,
+            upgradeRequired: true,
+          },
+          { status: 403 }
+        );
+      }
+      
+      // Counter was successfully incremented, continue with resume creation
     }
 
     // Generate title from personal info if not provided

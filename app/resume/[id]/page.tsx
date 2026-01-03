@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FileText, Download, Loader2, CheckCircle, AlertCircle, Edit2, BarChart3 } from 'lucide-react';
+import { FileText, Download, Loader2, CheckCircle, AlertCircle, Edit2, BarChart3, Plus } from 'lucide-react';
 import { getATSRecommendations } from '@/lib/ats-scorer';
 import type { ResumeVersion, ResumeAnalysis, StructuredResumeSection } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
@@ -168,42 +168,67 @@ export default function ResumePage() {
               <div className="card-body">
                 <div className="flex justify-between items-center mb-4">
                   <h1 className="card-title text-3xl text-brand-white">{resume.title}</h1>
-                  <Link 
-                    href={`/create?id=${resume.id}`}
-                    className="btn btn-sm btn-primary"
-                  >
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    Edit
-                  </Link>
+                  {resume.sections_data && resume.sections_data.length > 0 && (
+                    <Link 
+                      href={`/create?id=${resume.id}`}
+                      className="btn btn-sm btn-primary"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </Link>
+                  )}
                 </div>
                 {resume.sections_data && resume.sections_data.length > 0 ? (
                   <ResumeSectionsDisplay sections={resume.sections_data} />
-                ) : (
+                ) : resume.plain_text ? (
                   <div className="prose prose-invert max-w-none">
-                    <div className="whitespace-pre-wrap text-brand-gray font-mono text-sm bg-brand-black p-4 rounded-lg">
-                      {resume.plain_text || 'No content available'}
+                    <div className="bg-brand-black/50 p-6 rounded-lg border border-brand-cyan/20">
+                      <div className="mb-4">
+                        <div className="badge badge-info">Analyzed Resume</div>
+                        <p className="text-brand-gray text-sm mt-2">
+                          This resume was analyzed directly from upload. To edit it, create a new resume version.
+                        </p>
+                      </div>
+                      <div className="whitespace-pre-wrap text-brand-gray leading-relaxed text-sm max-h-[600px] overflow-y-auto custom-scrollbar">
+                        {resume.plain_text}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-brand-black/50 p-6 rounded-lg border border-red-500/20">
+                    <div className="flex items-center space-x-3 text-red-400">
+                      <AlertCircle className="w-6 h-6" />
+                      <div>
+                        <p className="font-semibold">No content available</p>
+                        <p className="text-sm text-brand-gray mt-1">
+                          This resume doesn't have any viewable content. 
+                          Try creating a new resume or analyzing another file.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="card bg-brand-navy shadow-xl">
-              <div className="card-body">
-                <h2 className="card-title text-brand-white">LaTeX Source</h2>
-                <div className="collapse collapse-arrow bg-brand-black">
-                  <input type="checkbox" />
-                  <div className="collapse-title text-brand-cyan font-medium">
-                    View LaTeX Source Code
-                  </div>
-                  <div className="collapse-content">
-                    <pre className="text-brand-gray text-xs overflow-x-auto">
-                      {resume.latex_source}
-                    </pre>
+            {resume.latex_source && (
+              <div className="card bg-brand-navy shadow-xl">
+                <div className="card-body">
+                  <h2 className="card-title text-brand-white">LaTeX Source</h2>
+                  <div className="collapse collapse-arrow bg-brand-black">
+                    <input type="checkbox" />
+                    <div className="collapse-title text-brand-cyan font-medium">
+                      View LaTeX Source Code
+                    </div>
+                    <div className="collapse-content">
+                      <pre className="text-brand-gray text-xs overflow-x-auto">
+                        {resume.latex_source}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -234,42 +259,61 @@ export default function ResumePage() {
               <div className="card-body">
                 <h2 className="card-title text-brand-white mb-4">Actions</h2>
                 <div className="space-y-3">
-                  {resume.status === 'draft' ? (
-                    <button
-                      onClick={handleCompile}
-                      disabled={compiling}
-                      className="btn btn-primary w-full"
-                    >
-                      {compiling ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Compiling...
-                        </>
+                  {resume.sections_data && resume.sections_data.length > 0 ? (
+                    <>
+                      {resume.status === 'draft' ? (
+                        <button
+                          onClick={handleCompile}
+                          disabled={compiling}
+                          className="btn btn-primary w-full"
+                        >
+                          {compiling ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Compiling...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-4 h-4 mr-2" />
+                              Compile to PDF
+                            </>
+                          )}
+                        </button>
                       ) : (
-                        <>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Compile to PDF
-                        </>
+                        <button onClick={handleDownload} className="btn btn-primary w-full">
+                          <Download className="w-4 h-4 mr-2" />
+                          Download PDF
+                        </button>
                       )}
-                    </button>
+                      <Link 
+                        href={`/create?id=${resume.id}`}
+                        className="btn btn-outline w-full text-brand-white border-brand-cyan"
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit Resume
+                      </Link>
+                    </>
                   ) : (
-                    <button onClick={handleDownload} className="btn btn-primary w-full">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download PDF
-                    </button>
+                    <div className="bg-brand-black/50 p-4 rounded-lg border border-brand-cyan/20 mb-3">
+                      <p className="text-brand-gray text-sm mb-2">
+                        <strong className="text-brand-white">Analyzed Resume</strong>
+                      </p>
+                      <p className="text-brand-gray text-xs">
+                        This resume was analyzed from an uploaded file. 
+                        To generate a PDF or edit it, create a new resume.
+                      </p>
+                    </div>
                   )}
-                  <Link 
-                    href={`/create?id=${resume.id}`}
-                    className="btn btn-outline w-full text-brand-white border-brand-cyan"
-                  >
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    Edit Resume
-                  </Link>
                   <Link href="/create" className="btn btn-outline w-full text-brand-white border-brand-cyan">
-                    Create New Version
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create New Resume
+                  </Link>
+                  <Link href="/review" className="btn btn-outline w-full text-brand-white border-brand-cyan">
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    Analyze Another
                   </Link>
                 </div>
-                {resume.status === 'compiled' && (
+                {resume.status === 'compiled' && resume.sections_data && resume.sections_data.length > 0 && (
                   <div className="alert alert-success mt-4">
                     <CheckCircle className="w-5 h-5" />
                     <span className="text-sm">PDF compiled successfully!</span>
