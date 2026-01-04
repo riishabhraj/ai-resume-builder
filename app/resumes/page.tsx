@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, LogOut, User, Menu, X, Sparkles } from 'lucide-react';
+import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, LogOut, User, Menu, X, Sparkles, Brain } from 'lucide-react';
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { useAuthStore } from '@/stores/authStore';
 import { ResumesPageSkeleton } from '@/components/skeletons/ResumesPageSkeleton';
+import ResumeViewModal from '@/components/ResumeViewModal';
 
 export default function ResumesPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function ResumesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [viewModalResumeId, setViewModalResumeId] = useState<string | null>(null);
   const { user, signOut, initialized, initialize } = useAuthStore();
 
   // Initialize auth and check waitlist
@@ -380,40 +382,50 @@ export default function ResumesPage() {
                       <span>{formatDate(resume.created_at)}</span>
                     </div>
                   </div>
-                  <div className="card-actions justify-end mt-4 gap-2 flex-wrap">
+                  <div className="card-actions justify-end mt-4 gap-1.5 flex-wrap min-h-[2.5rem]">
                     <Link
                       href={`/create?id=${resume.id}`}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple-light hover:to-brand-pink-light transition-all duration-300 border border-brand-purple/30 flex items-center"
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple-light hover:to-brand-pink-light transition-all duration-300 border border-brand-purple/30 flex items-center"
                     >
-                      <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+                      <Edit2 className="w-3 h-3 mr-1" />
                       Edit
                     </Link>
+                    {resume.status === 'compiled' && resume.pdf_url ? (
+                      <button
+                        onClick={() => setViewModalResumeId(resume.id)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center"
+                        title="View PDF"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        View
+                      </button>
+                    ) : null}
                     <Link
-                      href={`/resume/${resume.id}`}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center"
+                      href={`/review?resumeId=${resume.id}`}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-brand-cyan to-brand-purple hover:from-brand-cyan/90 hover:to-brand-purple-light transition-all duration-300 border border-brand-cyan/50 flex items-center shadow-md shadow-brand-cyan/30"
                     >
-                      <Eye className="w-3.5 h-3.5 mr-1.5" />
-                      View
+                      <Brain className="w-3 h-3 mr-1" />
+                      Review
                     </Link>
                     {resume.status === 'compiled' && (
                       <a
                         href={`/api/resume/${resume.id}/download`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-3 py-1.5 rounded-lg text-sm font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-3 h-3" />
                       </a>
                     )}
                     <button
                       onClick={() => handleDelete(resume.id)}
                       disabled={deletingId === resume.id}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium text-red-400 border border-red-400/50 hover:bg-red-400/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-400 border border-red-400/50 hover:bg-red-400/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     >
                       {deletingId === resume.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                       )}
                     </button>
                   </div>
@@ -423,6 +435,15 @@ export default function ResumesPage() {
           </div>
         )}
       </main>
+
+      {/* Resume View Modal */}
+      {viewModalResumeId && (
+        <ResumeViewModal
+          isOpen={!!viewModalResumeId}
+          onClose={() => setViewModalResumeId(null)}
+          resumeId={viewModalResumeId}
+        />
+      )}
     </div>
   );
 }

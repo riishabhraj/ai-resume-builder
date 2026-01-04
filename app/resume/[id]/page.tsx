@@ -168,46 +168,60 @@ export default function ResumePage() {
               <div className="card-body">
                 <div className="flex justify-between items-center mb-4">
                   <h1 className="card-title text-3xl text-brand-white">{resume.title}</h1>
-                  {resume.sections_data && resume.sections_data.length > 0 && (
-                    <Link 
-                      href={`/create?id=${resume.id}`}
-                      className="btn btn-sm btn-primary"
-                    >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit
-                    </Link>
+                  <div className="flex items-center space-x-2">
+                    {/* Show Review button if resume hasn't been analyzed */}
+                    {(resume.ats_score === null || resume.ats_score === undefined) && (
+                      <Link 
+                        href={`/review?resumeId=${resume.id}`}
+                        className="btn btn-primary btn-sm"
+                      >
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Review
+                      </Link>
+                    )}
+                    {resume.sections_data && resume.sections_data.length > 0 && (
+                      <Link 
+                        href={`/create?id=${resume.id}`}
+                        className="btn btn-sm btn-outline border-brand-cyan text-brand-white"
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-[calc(100vh - 12rem)] overflow-y-auto custom-scrollbar pr-2">
+                  {resume.sections_data && resume.sections_data.length > 0 ? (
+                    <ResumeSectionsDisplay sections={resume.sections_data} />
+                  ) : resume.plain_text ? (
+                    <div className="prose prose-invert max-w-none">
+                      <div className="bg-brand-black/50 p-6 rounded-lg border border-brand-cyan/20">
+                        <div className="mb-4">
+                          <div className="badge badge-info">Analyzed Resume</div>
+                          <p className="text-brand-gray text-sm mt-2">
+                            This resume was analyzed directly from upload. To edit it, create a new resume version.
+                          </p>
+                        </div>
+                        <div className="whitespace-pre-wrap text-brand-gray leading-relaxed text-sm">
+                          {resume.plain_text}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-brand-black/50 p-6 rounded-lg border border-red-500/20">
+                      <div className="flex items-center space-x-3 text-red-400">
+                        <AlertCircle className="w-6 h-6" />
+                        <div>
+                          <p className="font-semibold">No content available</p>
+                          <p className="text-sm text-brand-gray mt-1">
+                            This resume doesn't have any viewable content. 
+                            Try creating a new resume or analyzing another file.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-                {resume.sections_data && resume.sections_data.length > 0 ? (
-                  <ResumeSectionsDisplay sections={resume.sections_data} />
-                ) : resume.plain_text ? (
-                  <div className="prose prose-invert max-w-none">
-                    <div className="bg-brand-black/50 p-6 rounded-lg border border-brand-cyan/20">
-                      <div className="mb-4">
-                        <div className="badge badge-info">Analyzed Resume</div>
-                        <p className="text-brand-gray text-sm mt-2">
-                          This resume was analyzed directly from upload. To edit it, create a new resume version.
-                        </p>
-                      </div>
-                      <div className="whitespace-pre-wrap text-brand-gray leading-relaxed text-sm max-h-[600px] overflow-y-auto custom-scrollbar">
-                        {resume.plain_text}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-brand-black/50 p-6 rounded-lg border border-red-500/20">
-                    <div className="flex items-center space-x-3 text-red-400">
-                      <AlertCircle className="w-6 h-6" />
-                      <div>
-                        <p className="font-semibold">No content available</p>
-                        <p className="text-sm text-brand-gray mt-1">
-                          This resume doesn't have any viewable content. 
-                          Try creating a new resume or analyzing another file.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -259,6 +273,17 @@ export default function ResumePage() {
               <div className="card-body">
                 <h2 className="card-title text-brand-white mb-4">Actions</h2>
                 <div className="space-y-3">
+                  {/* Show Review button prominently if resume hasn't been analyzed */}
+                  {(resume.ats_score === null || resume.ats_score === undefined) ? (
+                    <Link 
+                      href={`/review?resumeId=${resume.id}`}
+                      className="btn btn-primary w-full"
+                    >
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Review This Resume
+                    </Link>
+                  ) : null}
+                  
                   {resume.sections_data && resume.sections_data.length > 0 ? (
                     <>
                       {resume.status === 'draft' ? (

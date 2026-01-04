@@ -1,8 +1,8 @@
 'use client';
 
 import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, BarChart3, X, User, LogOut, Sparkles } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { jobCategories, getCategoryById } from '@/lib/job-categories';
 import Link from 'next/link';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
@@ -14,11 +14,13 @@ import { useAuthStore } from '@/stores/authStore';
 
 type Step = 'upload' | 'category' | 'field' | 'experience' | 'analyzing' | 'results';
 
-export default function ReviewPage() {
+function ReviewPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
   const { user, initialized, initialize, signOut } = useAuthStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [loadingResume, setLoadingResume] = useState(false);
   
   // Initialize auth
   useEffect(() => {
@@ -56,9 +58,165 @@ export default function ReviewPage() {
   const [showDetailedFeedback, setShowDetailedFeedback] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [currentStage, setCurrentStage] = useState(0);
+  const [resumeId, setResumeId] = useState<string | null>(null);
 
   const selectedCategory = getCategoryById(category);
   const selectedField = selectedCategory?.fields.find((f) => f.id === field);
+
+  // Validate resume ID - UUID format or alphanumeric with hyphens, max 50 chars
+  function isValidResumeId(id: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const safeIdRegex = /^[a-zA-Z0-9_-]{1,50}$/;
+    return uuidRegex.test(id) || safeIdRegex.test(id);
+  }
+
+  // Validate AnalysisResult shape
+  function isValidAnalysisResult(obj: any): obj is AnalysisResult {
+    if (!obj || typeof obj !== 'object') return false;
+    
+    // Check required fields
+    if (typeof obj.overallScore !== 'number') return false;
+    if (!obj.categories || typeof obj.categories !== 'object') return false;
+    if (!Array.isArray(obj.suggestions)) return false;
+    if (!Array.isArray(obj.strengths)) return false;
+    if (typeof obj.detailedFeedback !== 'string' && typeof obj.detailedFeedback !== 'object') return false;
+    
+    // Check categories structure
+    const requiredCategories = ['ats', 'content', 'writing', 'jobMatch', 'ready'];
+    for (const cat of requiredCategories) {
+      if (!obj.categories[cat] || typeof obj.categories[cat] !== 'object') return false;
+      if (typeof obj.categories[cat].score !== 'number') return false;
+      if (typeof obj.categories[cat].max !== 'number') return false;
+      if (typeof obj.categories[cat].why !== 'string') return false;
+    }
+    
+    return true;
+  }
+
+  const loadExistingResume = useCallback(async (id: string) => {
+    // Validate and sanitize ID
+    if (!isValidResumeId(id)) {
+      setError('Invalid resume ID format');
+      setLoadingResume(false);
+      return;
+    }
+
+    setLoadingResume(true);
+    setError(null);
+    
+    try {
+      // Use encodeURIComponent to safely encode the ID
+      const encodedId = encodeURIComponent(id);
+      const response = await fetch(`/api/resume/${encodedId}`);
+      if (!response.ok) throw new Error('Failed to load resume');
+
+      const data = await response.json();
+      
+      // Validate response shape
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format');
+      }
+      
+      if (data.success !== true) {
+        throw new Error(data.error || 'Failed to load resume');
+      }
+      
+      if (!data.resume || typeof data.resume !== 'object') {
+        throw new Error('Resume data not found in response');
+      }
+      
+      const resume = data.resume;
+        
+        // If resume has ATS score, it was already analyzed - load the analysis
+        if (resume.ats_score !== null && resume.ats_score !== undefined) {
+          // Load analysis from resume_analyses table
+          // Reuse the already-encoded ID to avoid double-encoding
+          const analysesResponse = await fetch(`/api/resume/${encodedId}/analyses`);
+          if (analysesResponse.ok) {
+            const analysesData = await analysesResponse.json();
+            if (analysesData.success && analysesData.analyses && analysesData.analyses.length > 0) {
+              // Find the most recent 'review' or 'ats' analysis
+              const reviewAnalysis = analysesData.analyses.find(
+                (a: any) => a.analysis_type === 'review' || a.analysis_type === 'ats'
+              ) || analysesData.analyses[0];
+              
+              if (reviewAnalysis && reviewAnalysis.feedback) {
+                // Validate AnalysisResult shape before using
+                const feedback = reviewAnalysis.feedback;
+                if (isValidAnalysisResult(feedback)) {
+                  const analysisData = feedback as AnalysisResult;
+                  setAnalysis(analysisData);
+                  setStep('results');
+                  setLoadingResume(false);
+                  return;
+                } else {
+                  console.warn('Invalid analysis result format:', feedback);
+                  // Fall through to legacy handling
+                }
+              }
+            }
+          }
+          
+          // If no analysis found in analyses table (legacy data), create a basic analysis result
+          // This allows users to see their ATS score even if detailed analysis is missing
+          if (resume.ats_score !== null && resume.ats_score !== undefined) {
+            // Create a minimal analysis result from the ATS score
+            // Categories are set to null to indicate legacy data - UI should hide category breakdown
+            const score = resume.ats_score;
+            const basicAnalysis: AnalysisResult = {
+              overallScore: score,
+              summaryFeedback: `This resume was previously analyzed and received an ATS score of ${score}. Re-upload the PDF to get a full, up-to-date breakdown and recommendations.`,
+              categories: {
+                ats: { score: 0, max: 20, why: 'Category breakdown not available for legacy analysis' },
+                content: { score: 0, max: 40, why: 'Category breakdown not available for legacy analysis' },
+                writing: { score: 0, max: 10, why: 'Category breakdown not available for legacy analysis' },
+                jobMatch: { score: 0, max: 25, why: 'Category breakdown not available for legacy analysis' },
+                ready: { score: 0, max: 5, why: 'Category breakdown not available for legacy analysis' },
+              },
+              suggestions: [],
+              strengths: [],
+              detailedFeedback: `This resume was analyzed previously and received an ATS score of ${score}. Category breakdowns and detailed recommendations are not available for this legacy analysis. To see comprehensive feedback, category breakdowns, and personalized recommendations, please upload the PDF again and run a new analysis.`,
+            };
+            setAnalysis(basicAnalysis);
+            setStep('results');
+            setLoadingResume(false);
+            return;
+          }
+        } else {
+          // Resume hasn't been analyzed - allow them to analyze it
+          // If resume has plain_text or sections_data, we can use existing content for analysis
+          // User will still need to upload a PDF file for the analysis process
+          if (resume.plain_text || (Array.isArray(resume.sections_data) && resume.sections_data.length > 0)) {
+            // Pre-fill with resume data, but they still need to select category/field/experience
+            // A PDF upload is required for the analysis process
+            setStep('category');
+          } else {
+            // No content available - need to upload PDF
+            setStep('upload');
+          }
+        }
+    } catch (err) {
+      console.error('Error loading resume:', err);
+      setError('Failed to load resume. Please try again.');
+      setStep('upload');
+    } finally {
+      setLoadingResume(false);
+    }
+  }, []);
+
+  // Load existing resume if resumeId is provided
+  useEffect(() => {
+    const resumeIdParam = searchParams?.get('resumeId');
+    if (resumeIdParam && initialized && user) {
+      // Validate ID before using
+      if (!isValidResumeId(resumeIdParam)) {
+        setError('Invalid resume ID format');
+        return;
+      }
+      setResumeId(resumeIdParam);
+      loadExistingResume(resumeIdParam);
+    }
+  }, [searchParams, initialized, user, loadExistingResume]);
 
   // Define stages for analyzing state
   const analyzingStages = [
@@ -137,7 +295,13 @@ export default function ReviewPage() {
   };
 
   const handleAnalyze = async () => {
-    if (!file || !category || !field || !experience) {
+    // If we have a resumeId but no file, we need the file to analyze
+    if (!file && !resumeId) {
+      setError('Please upload a resume file');
+      return;
+    }
+    
+    if (!category || !field || !experience) {
       setError('Please complete all fields');
       return;
     }
@@ -148,10 +312,23 @@ export default function ReviewPage() {
 
     try {
       const formData = new FormData();
-      formData.append('resume', file);
+      
+      // If we have a file, use it. Otherwise, if we have resumeId, we'll need to handle it differently
+      // For now, require file upload even for existing resumes
+      if (file) {
+        formData.append('resume', file);
+      } else {
+        throw new Error('Please upload a PDF file to analyze');
+      }
+      
       formData.append('category', category);
       formData.append('field', field);
       formData.append('experience', experience);
+      
+      // If we have a resumeId, include it so the API can link the analysis
+      if (resumeId) {
+        formData.append('resumeId', resumeId);
+      }
 
       const response = await fetch('/api/review-resume', {
         method: 'POST',
@@ -159,7 +336,15 @@ export default function ReviewPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Analysis failed');
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          // Log JSON parse errors for debugging
+          console.error('Failed to parse error response as JSON:', parseError);
+          errorData = { _parseError: parseError instanceof Error ? parseError.message : 'Unknown parse error' };
+        }
+        throw new Error(errorData.error || 'Analysis failed');
       }
 
       const data = await response.json();
@@ -179,6 +364,7 @@ export default function ReviewPage() {
     setExperience('');
     setAnalysis(null);
     setError(null);
+    setResumeId(null);
   };
 
   const getStepNumber = () => {
@@ -248,6 +434,11 @@ export default function ReviewPage() {
 
   // Don't render if not authenticated (will redirect)
   if (!user) {
+    return <ReviewPageSkeleton />;
+  }
+
+  // Show loading state while loading existing resume
+  if (loadingResume) {
     return <ReviewPageSkeleton />;
   }
 
@@ -1209,6 +1400,14 @@ export default function ReviewPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={<ReviewPageSkeleton />}>
+      <ReviewPageContent />
+    </Suspense>
   );
 }
 

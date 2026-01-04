@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, hasSupabase } from '@/lib/supabase';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, supabaseAdmin } from '@/lib/supabase/server';
 import { generateEmbedding, hasOpenAI } from '@/lib/embeddings';
 import { getCategoryById, getFieldById, getExperienceLevelById } from '@/lib/job-categories';
 import type { AnalysisResult } from '@/lib/types/analysis';
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const category = formData.get('category') as string;
     const field = formData.get('field') as string;
     const experience = formData.get('experience') as string;
+    const resumeIdParam = formData.get('resumeId') as string | null;
 
     if (!file || !category || !field || !experience) {
       return NextResponse.json(
@@ -260,25 +261,88 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
             }
           }
 
-          // Save resume to database with status 'compiled' (not 'draft')
-          const { data: savedResume, error: saveError } = await supabaseClient
-            .from('resume_versions')
-            .insert({
-              user_id: user.id,
-              title: title.length > 100 ? title.substring(0, 100) : title,
-              plain_text: resumeText,
-              ats_score: Math.round(analysis.overallScore),
-              status: 'compiled', // Not a draft - it's been analyzed
-            })
-            .select('id')
-            .single();
+          // If resumeId is provided, update existing resume; otherwise create new one
+          if (resumeIdParam) {
+            // Update existing resume with analysis results
+            const { data: updatedResume, error: updateError } = await supabaseClient
+              .from('resume_versions')
+              .update({
+                plain_text: resumeText,
+                ats_score: Math.round(analysis.overallScore),
+                status: 'compiled', // Mark as analyzed
+                updated_at: new Date().toISOString(), // Update timestamp to reflect re-analysis
+              })
+              .eq('id', resumeIdParam)
+              .eq('user_id', user.id) // Ensure user owns this resume
+              .select('id')
+              .single();
 
-          if (saveError) {
-            console.error('Error saving analyzed resume:', saveError);
-            // Don't fail the request if save fails, just log it
-          } else if (savedResume) {
-            savedResumeId = savedResume.id;
-            console.log('Saved analyzed resume to database:', savedResumeId);
+            if (updateError) {
+              console.error('Error updating analyzed resume:', updateError);
+              // Don't fail the request if update fails, just log it
+            } else if (updatedResume) {
+              savedResumeId = updatedResume.id;
+              console.log('Updated analyzed resume in database:', savedResumeId);
+            }
+          } else {
+            // Save new resume to database with status 'compiled' (not 'draft')
+            const { data: savedResume, error: saveError } = await supabaseClient
+              .from('resume_versions')
+              .insert({
+                user_id: user.id,
+                title: title.length > 100 ? title.substring(0, 100) : title,
+                plain_text: resumeText,
+                ats_score: Math.round(analysis.overallScore),
+                status: 'compiled', // Not a draft - it's been analyzed
+              })
+              .select('id')
+              .single();
+
+            if (saveError) {
+              console.error('Error saving analyzed resume:', saveError);
+              // Don't fail the request if save fails, just log it
+            } else if (savedResume) {
+              savedResumeId = savedResume.id;
+              console.log('Saved analyzed resume to database:', savedResumeId);
+            }
+          }
+
+          // After analysis is complete, store the PDF in S3 (user-specific folder)
+          if (savedResumeId && supabaseAdmin) {
+            try {
+              const fileName = `${user.id}/${savedResumeId}.pdf`;
+              const { error: uploadError } = await supabaseAdmin.storage
+                .from('resumes')
+                .upload(fileName, buffer, {
+                  contentType: 'application/pdf',
+                  upsert: true,
+                });
+
+              if (uploadError) {
+                console.error('Error uploading PDF to S3:', uploadError);
+                // Don't fail the request if upload fails, just log it
+              } else {
+                // Update resume record with pdf_url - ensure user owns this resume
+                // User is already validated earlier in the function, so we can safely use user.id here
+                const { error: updateError } = await supabaseAdmin
+                  .from('resume_versions')
+                  .update({
+                    pdf_url: fileName,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', savedResumeId)
+                  .eq('user_id', user.id); // Ensure user owns this resume
+
+                if (updateError) {
+                  console.error('Error updating PDF URL:', updateError);
+                } else {
+                  console.log('PDF stored in S3:', fileName);
+                }
+              }
+            } catch (uploadError) {
+              console.error('Error storing PDF in S3:', uploadError);
+              // Don't fail the request if upload fails, just log it
+            }
           }
         }
       }

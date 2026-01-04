@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Fetch user's resumes (RLS ensures user can only see their own)
     const { data: resumes, error, count } = await supabase
       .from('resume_versions')
-      .select('id, title, template_id, status, ats_score, created_at, updated_at', { count: 'exact' })
+      .select('id, title, template_id, status, ats_score, pdf_url, created_at, updated_at', { count: 'exact' })
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);

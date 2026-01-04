@@ -3,12 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, BarChart3, LogOut, User, Menu, X, TrendingUp, Award, Target, Clock, ArrowRight, Sparkles } from 'lucide-react';
+import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, BarChart3, LogOut, User, Menu, X, TrendingUp, Award, Target, Clock, ArrowRight, Sparkles, Brain } from 'lucide-react';
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { useAuthStore } from '@/stores/authStore';
 import HiringZoneChart from '@/components/HiringZoneChart';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
+import ResumeViewModal from '@/components/ResumeViewModal';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [viewModalResumeId, setViewModalResumeId] = useState<string | null>(null);
   const { user, signOut, initialized, initialize } = useAuthStore();
 
   // Initialize auth and check waitlist
@@ -589,12 +591,22 @@ export default function Dashboard() {
                           <Edit2 className="w-3 h-3" />
                           <span>Edit</span>
                         </Link>
+                        {resume.status === 'compiled' && resume.pdf_url ? (
+                          <button
+                            onClick={() => setViewModalResumeId(resume.id)}
+                            className="text-xs text-brand-cyan hover:underline flex items-center space-x-1"
+                            title="View PDF"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>View</span>
+                          </button>
+                        ) : null}
                         <Link
-                          href={`/resume/${resume.id}`}
-                          className="text-xs text-brand-cyan hover:underline flex items-center space-x-1"
+                          href={`/review?resumeId=${resume.id}`}
+                          className="text-xs text-brand-purple hover:underline flex items-center space-x-1"
                         >
-                          <Eye className="w-3 h-3" />
-                          <span>View</span>
+                          <Brain className="w-3 h-3" />
+                          <span>Review</span>
                         </Link>
                       </div>
                     </div>
@@ -637,6 +649,15 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Resume View Modal */}
+      {viewModalResumeId && (
+        <ResumeViewModal
+          isOpen={!!viewModalResumeId}
+          onClose={() => setViewModalResumeId(null)}
+          resumeId={viewModalResumeId}
+        />
+      )}
     </div>
   );
 }
