@@ -142,12 +142,12 @@ export default function ResumesPage() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3 sm:space-x-6">
               <Link href="/" className="flex items-center space-x-2 group hover:opacity-90 transition-opacity">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
                   <FileText className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold gradient-text">ResuCraft</span>
+                <span className="text-lg sm:text-xl font-bold gradient-text">ResuCraft</span>
               </Link>
               
               {/* Desktop Navigation */}
@@ -171,15 +171,34 @@ export default function ResumesPage() {
                   AI Analysis
                 </Link>
               </nav>
+              
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="md:hidden p-2 rounded-lg text-brand-white hover:bg-brand-navy/50 transition-colors"
+                aria-label="Toggle menu"
+                aria-expanded={showMobileMenu}
+              >
+                {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link
                 href="/create"
                 className="hidden md:flex group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Resume
+              </Link>
+              
+              {/* Mobile Create Button */}
+              <Link
+                href="/create"
+                className="md:hidden p-2 rounded-lg text-brand-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-lg glow-purple"
+                aria-label="Create Resume"
+              >
+                <Plus className="w-5 h-5" />
               </Link>
 
               {/* User Menu */}
@@ -200,7 +219,7 @@ export default function ResumesPage() {
                         <User className="w-4 h-4 text-white" />
                       </div>
                     )}
-                    <span className="hidden md:block text-brand-white text-sm font-medium">
+                    <span className="hidden sm:block text-brand-white text-sm font-medium">
                       {user.user_metadata?.full_name || 
                        user.user_metadata?.name || 
                        user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
@@ -225,8 +244,8 @@ export default function ResumesPage() {
                         {/* Upgrade to Pro */}
                         <button
                           onClick={() => {
-                            // TODO: Enable upgrade functionality later
                             setShowUserMenu(false);
+                            router.push('/pricing');
                           }}
                           className="w-full text-left px-4 py-2.5 text-sm text-brand-pink hover:bg-gray-700/50 transition-colors flex items-center space-x-2"
                         >
@@ -249,18 +268,6 @@ export default function ResumesPage() {
                   )}
                 </div>
               )}
-
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden p-2 rounded-lg bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30"
-              >
-                {showMobileMenu ? (
-                  <X className="w-5 h-5 text-brand-white" />
-                ) : (
-                  <Menu className="w-5 h-5 text-brand-white" />
-                )}
-              </button>
             </div>
           </div>
 
@@ -305,17 +312,17 @@ export default function ResumesPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl sm:text-5xl font-black text-brand-white gradient-text">My Resumes</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-white gradient-text">My Resumes</h1>
             <Link
               href="/create"
-              className="px-6 py-2.5 rounded-xl font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple border-2 border-brand-pink/30 flex items-center space-x-2"
+              className="px-4 sm:px-6 py-2.5 rounded-xl text-sm sm:text-base font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple border-2 border-brand-pink/30 flex items-center justify-center space-x-2 w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               <span>New Resume</span>
             </Link>
           </div>
-          <p className="text-brand-gray-text text-lg">
+          <p className="text-brand-gray-text text-base sm:text-lg">
             Manage all your resume versions and track their ATS scores.
           </p>
         </div>
@@ -382,37 +389,42 @@ export default function ResumesPage() {
                       <span>{formatDate(resume.created_at)}</span>
                     </div>
                   </div>
-                  <div className="card-actions justify-end mt-4 gap-1.5 flex-wrap min-h-[2.5rem]">
+                  <div className="card-actions justify-end mt-4 gap-1.5 sm:gap-2 flex-wrap min-h-[2.5rem]">
                     <Link
                       href={`/create?id=${resume.id}`}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple-light hover:to-brand-pink-light transition-all duration-300 border border-brand-purple/30 flex items-center"
+                      className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple-light hover:to-brand-pink-light transition-all duration-300 border border-brand-purple/30 flex items-center flex-1 sm:flex-initial justify-center min-w-[70px]"
+                      aria-label={`Edit resume ${resume.title || resume.id}`}
                     >
                       <Edit2 className="w-3 h-3 mr-1" />
-                      Edit
+                      <span className="hidden sm:inline">Edit</span>
                     </Link>
                     {resume.status === 'compiled' && resume.pdf_url ? (
                       <button
                         onClick={() => setViewModalResumeId(resume.id)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center"
+                        className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center justify-center flex-1 sm:flex-initial min-w-[70px]"
                         title="View PDF"
+                        aria-label={`View resume PDF ${resume.title || resume.id}`}
                       >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View
+                        <Eye className="w-3 h-3 sm:mr-1" />
+                        <span className="hidden sm:inline">View</span>
                       </button>
                     ) : null}
                     <Link
                       href={`/review?resumeId=${resume.id}`}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-brand-cyan to-brand-purple hover:from-brand-cyan/90 hover:to-brand-purple-light transition-all duration-300 border border-brand-cyan/50 flex items-center shadow-md shadow-brand-cyan/30"
+                      className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-brand-cyan to-brand-purple hover:from-brand-cyan/90 hover:to-brand-purple-light transition-all duration-300 border border-brand-cyan/50 flex items-center justify-center shadow-md shadow-brand-cyan/30 flex-1 sm:flex-initial min-w-[80px]"
+                      aria-label={`Review resume ${resume.title || resume.id}`}
                     >
-                      <Brain className="w-3 h-3 mr-1" />
-                      Review
+                      <Brain className="w-3 h-3 sm:mr-1" />
+                      <span className="hidden sm:inline">Review</span>
                     </Link>
                     {resume.status === 'compiled' && (
                       <a
                         href={`/api/resume/${resume.id}/download`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center"
+                        className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-cyan border border-brand-cyan/50 hover:bg-brand-cyan/10 transition-all duration-300 flex items-center justify-center min-w-[44px]"
+                        title="Download"
+                        aria-label={`Download resume ${resume.title || resume.id}`}
                       >
                         <Download className="w-3 h-3" />
                       </a>
@@ -421,6 +433,7 @@ export default function ResumesPage() {
                       onClick={() => handleDelete(resume.id)}
                       disabled={deletingId === resume.id}
                       className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-400 border border-red-400/50 hover:bg-red-400/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                      aria-label={`Delete resume ${resume.title || resume.id}`}
                     >
                       {deletingId === resume.id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />

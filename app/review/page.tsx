@@ -1,6 +1,6 @@
 'use client';
 
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, BarChart3, X, User, LogOut, Sparkles } from 'lucide-react';
+import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, BarChart3, X, User, LogOut, Sparkles, Menu, Plus } from 'lucide-react';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { jobCategories, getCategoryById } from '@/lib/job-categories';
@@ -20,6 +20,7 @@ function ReviewPageContent() {
   const [isMounted, setIsMounted] = useState(false);
   const { user, initialized, initialize, signOut } = useAuthStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [loadingResume, setLoadingResume] = useState(false);
   
   // Initialize auth
@@ -59,9 +60,91 @@ function ReviewPageContent() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [currentStage, setCurrentStage] = useState(0);
   const [resumeId, setResumeId] = useState<string | null>(null);
+  const [resumeText, setResumeText] = useState<string | null>(null);
 
   const selectedCategory = getCategoryById(category);
   const selectedField = selectedCategory?.fields.find((f) => f.id === field);
+
+  // Helper function to convert sections_data to plain text
+  function sectionsToText(sections: any[]): string {
+    // Validate input - return empty string for invalid input
+    if (!sections || !Array.isArray(sections)) {
+      return '';
+    }
+    
+    let text = '';
+    
+    sections.forEach((section) => {
+      // Skip if section is null/undefined
+      if (!section || typeof section !== 'object') {
+        return;
+      }
+      
+      if (section.type === 'personal-info') {
+        const info = section.content;
+        // Add defensive guards for nested properties
+        if (info && typeof info === 'object') {
+          if (info.fullName) text += `Name: ${info.fullName}\n`;
+          if (info.title) text += `Title: ${info.title}\n`;
+          if (info.email) text += `Email: ${info.email}\n`;
+          if (info.phone) text += `Phone: ${info.phone}\n`;
+          if (info.location) text += `Location: ${info.location}\n`;
+          if (info.linkedin) text += `LinkedIn: ${info.linkedin}\n`;
+          if (info.website) text += `Website: ${info.website}\n`;
+        }
+        text += '\n';
+      } else if (section.type === 'professional-summary' || section.type === 'career-objective') {
+        const contentText = section.content?.text || section.content || '';
+        text += `${section.title || 'Summary'}:\n${contentText}\n\n`;
+      } else if (section.type === 'experience' || section.type === 'leadership') {
+        text += `${section.title || 'Experience'}:\n`;
+        if (Array.isArray(section.content)) {
+          section.content.forEach((exp: any) => {
+            // Add defensive guards for exp properties
+            if (exp && typeof exp === 'object') {
+              if (exp.company) text += `${exp.company} - ${exp.role || ''}\n`;
+              if (exp.location) text += `Location: ${exp.location}\n`;
+              if (exp.startDate || exp.endDate) {
+                text += `${exp.startDate || ''} - ${exp.endDate || ''}\n`;
+              }
+              if (exp.bullets && Array.isArray(exp.bullets)) {
+                exp.bullets.forEach((bullet: any) => {
+                  const bulletText = typeof bullet === 'string' ? bullet : (bullet?.text || '');
+                  if (bulletText) text += `• ${bulletText}\n`;
+                });
+              }
+            }
+            text += '\n';
+          });
+        }
+        text += '\n';
+      } else if (section.type === 'education') {
+        text += `${section.title || 'Education'}:\n`;
+        if (Array.isArray(section.content)) {
+          section.content.forEach((edu: any) => {
+            // Add defensive guards for edu properties
+            if (edu && typeof edu === 'object') {
+              if (edu.school) text += `${edu.school} - ${edu.degree || ''}\n`;
+              if (edu.field) text += `${edu.field}\n`;
+              if (edu.graduationDate) text += `Graduated: ${edu.graduationDate}\n`;
+            }
+            text += '\n';
+          });
+        }
+      } else if (section.type === 'skills') {
+        text += `${section.title || 'Skills'}:\n`;
+        if (Array.isArray(section.content)) {
+          text += section.content.join(', ') + '\n\n';
+        } else if (typeof section.content === 'string') {
+          text += section.content + '\n\n';
+        }
+      } else if (section.content) {
+        text += `${section.title || section.type}:\n${typeof section.content === 'string' ? section.content : JSON.stringify(section.content)}\n\n`;
+      }
+    });
+    
+    return text.trim();
+  }
 
   // Validate resume ID - UUID format or alphanumeric with hyphens, max 50 chars
   function isValidResumeId(id: string): boolean {
@@ -184,12 +267,24 @@ function ReviewPageContent() {
           }
         } else {
           // Resume hasn't been analyzed - allow them to analyze it
-          // If resume has plain_text or sections_data, we can use existing content for analysis
-          // User will still need to upload a PDF file for the analysis process
+          // If resume has plain_text or sections_data, extract text and skip upload
           if (resume.plain_text || (Array.isArray(resume.sections_data) && resume.sections_data.length > 0)) {
-            // Pre-fill with resume data, but they still need to select category/field/experience
-            // A PDF upload is required for the analysis process
-            setStep('category');
+            // Extract text from resume data
+            let extractedText = '';
+            if (Array.isArray(resume.sections_data) && resume.sections_data.length > 0) {
+              extractedText = sectionsToText(resume.sections_data);
+            } else if (resume.plain_text) {
+              extractedText = resume.plain_text;
+            }
+            
+            // If we have valid text, use it and skip upload step
+            if (extractedText && extractedText.length > 100) {
+              setResumeText(extractedText);
+              setStep('category'); // Skip upload, go directly to category
+            } else {
+              // Text too short or invalid - need to upload PDF
+              setStep('upload');
+            }
           } else {
             // No content available - need to upload PDF
             setStep('upload');
@@ -264,7 +359,7 @@ function ReviewPageContent() {
   };
 
   const handleNext = () => {
-    if (step === 'upload' && !file) {
+    if (step === 'upload' && !file && !resumeText) {
       setError('Please upload a resume first');
       return;
     }
@@ -282,7 +377,11 @@ function ReviewPageContent() {
 
   const handleBack = () => {
     if (step === 'category') {
-      setStep('upload');
+      // Only go back to upload if we don't have resumeText (i.e., user uploaded a file)
+      // If we have resumeText, we came from a draft resume, so stay on category
+      if (!resumeText) {
+        setStep('upload');
+      }
     } else if (step === 'field') {
       setStep('category');
       setField('');
@@ -295,9 +394,15 @@ function ReviewPageContent() {
   };
 
   const handleAnalyze = async () => {
-    // If we have a resumeId but no file, we need the file to analyze
+    // If we have a resumeId but no file, check if we have resumeText
     if (!file && !resumeId) {
       setError('Please upload a resume file');
+      return;
+    }
+    
+    // If we have resumeId but no file, we need resumeText
+    if (!file && resumeId && !resumeText) {
+      setError('Please upload a PDF file to analyze');
       return;
     }
     
@@ -313,10 +418,12 @@ function ReviewPageContent() {
     try {
       const formData = new FormData();
       
-      // If we have a file, use it. Otherwise, if we have resumeId, we'll need to handle it differently
-      // For now, require file upload even for existing resumes
+      // If we have a file, use it. Otherwise, use resumeText
       if (file) {
         formData.append('resume', file);
+      } else if (resumeText) {
+        // Send text directly instead of PDF
+        formData.append('resumeText', resumeText);
       } else {
         throw new Error('Please upload a PDF file to analyze');
       }
@@ -359,6 +466,7 @@ function ReviewPageContent() {
   const handleReset = () => {
     setStep('upload');
     setFile(null);
+    setResumeText(null);
     setCategory('');
     setField('');
     setExperience('');
@@ -448,12 +556,12 @@ function ReviewPageContent() {
       <header className="sticky top-0 z-50 glass border-b neon-border backdrop-blur-xl flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3 sm:space-x-6">
               <Link href="/" className="flex items-center space-x-2 group hover:opacity-90 transition-opacity">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
                   <FileText className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-black gradient-text">ResuCraft</span>
+                <span className="text-lg sm:text-xl font-black gradient-text">ResuCraft</span>
               </Link>
               
               {/* Desktop Navigation */}
@@ -477,17 +585,37 @@ function ReviewPageContent() {
                   AI Analysis
                 </Link>
               </nav>
+              
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="md:hidden p-2 rounded-lg text-brand-white hover:bg-brand-navy/50 transition-colors"
+                aria-label="Toggle menu"
+                aria-expanded={showMobileMenu}
+              >
+                {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link 
                 href="/create" 
-                className="group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple"
+                className="hidden sm:flex group px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl glow-purple"
               >
                 <span className="flex items-center">
-                  Create Resume
+                  <span className="hidden md:inline">Create Resume</span>
+                  <span className="md:hidden">Create</span>
                   <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
                 </span>
+              </Link>
+              
+              {/* Mobile Create Button */}
+              <Link 
+                href="/create" 
+                className="sm:hidden p-2 rounded-lg text-brand-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-lg glow-purple"
+                aria-label="Create Resume"
+              >
+                <Plus className="w-5 h-5" />
               </Link>
 
               {/* User Menu */}
@@ -508,7 +636,7 @@ function ReviewPageContent() {
                         <User className="w-4 h-4 text-white" />
                       </div>
                     )}
-                    <span className="hidden md:block text-brand-white text-sm font-medium">
+                    <span className="hidden sm:block text-brand-white text-sm font-medium">
                       {user.user_metadata?.full_name || 
                        user.user_metadata?.name || 
                        user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
@@ -533,8 +661,8 @@ function ReviewPageContent() {
                         {/* Upgrade to Pro */}
                         <button
                           onClick={() => {
-                            // TODO: Enable upgrade functionality later
                             setShowUserMenu(false);
+                            router.push('/pricing');
                           }}
                           className="w-full text-left px-4 py-2.5 text-sm text-brand-pink hover:bg-gray-700/50 transition-colors flex items-center space-x-2"
                         >
@@ -557,6 +685,43 @@ function ReviewPageContent() {
               )}
             </div>
           </div>
+          
+          {/* Mobile Navigation Menu */}
+          {showMobileMenu && (
+            <div className="md:hidden mt-4 pb-4 border-t border-brand-purple/30 pt-4">
+              <nav className="flex flex-col space-y-3">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50 transition-all duration-300"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/resumes"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-gray-text hover:text-brand-white hover:bg-brand-navy/50 transition-all duration-300"
+                >
+                  Resumes
+                </Link>
+                <Link
+                  href="/review"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-brand-white bg-brand-purple/20 hover:bg-brand-purple/30 transition-all duration-300"
+                >
+                  AI Analysis
+                </Link>
+                <Link
+                  href="/create"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light transition-all duration-300"
+                >
+                  <Plus className="w-4 h-4 inline mr-2" />
+                  Create Resume
+                </Link>
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
@@ -567,20 +732,20 @@ function ReviewPageContent() {
       </div>
 
       {/* Main Content Modal */}
-      <main className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4 pt-16 pb-4 overflow-y-auto">
-        <div className="relative glass rounded-3xl shadow-2xl border-2 neon-border backdrop-blur-xl w-full max-w-5xl max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col">
+      <main className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-2 sm:p-4 pt-20 sm:pt-24 pb-2 sm:pb-4 overflow-y-auto">
+        <div className="relative glass rounded-2xl sm:rounded-3xl shadow-2xl border-2 neon-border backdrop-blur-xl w-full max-w-5xl max-h-[calc(100vh-6rem)] sm:max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col">
           {/* Decorative gradient overlay */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-pink/10 rounded-full blur-3xl pointer-events-none"></div>
           
           {/* Header */}
-          <div className="relative px-6 py-4 border-b border-brand-purple/30 backdrop-blur-xl flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <h1 className="text-xl font-black">
+          <div className="relative px-4 sm:px-6 py-3 sm:py-4 border-b border-brand-purple/30 backdrop-blur-xl flex-shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+              <div className="flex items-center gap-3 sm:gap-6">
+                <h1 className="text-lg sm:text-xl font-black">
                   <span className="gradient-text">AI Resume Review</span>
                 </h1>
                 {step !== 'analyzing' && step !== 'results' && (
-                  <div className="flex items-center gap-2">
+                  <div className="hidden sm:flex items-center gap-2">
                     {[1, 2, 3, 4].map((num) => (
                       <div
                         key={num}
@@ -607,25 +772,25 @@ function ReviewPageContent() {
           </div>
 
           {/* Content */}
-          <div className="p-6 overflow-y-auto flex-1">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1">
             <div className="w-full mx-auto">
             {/* Step 1: Upload Resume */}
             {step === 'upload' && (
               <div className="max-w-2xl mx-auto">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-cyan/10 rounded-full mb-4">
-                    <Upload className="w-7 h-7 text-brand-cyan" />
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-brand-cyan/10 rounded-full mb-3 sm:mb-4">
+                    <Upload className="w-6 h-6 sm:w-7 sm:h-7 text-brand-cyan" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                     Upload Your Resume
                   </h2>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     Upload your existing resume to get instant AI-powered feedback
                   </p>
                 </div>
 
                 <div
-                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                  className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center transition-all ${
                     file
                       ? 'border-green-500 bg-green-500/10'
                       : 'border-gray-600 hover:border-brand-cyan bg-gray-800/50 hover:bg-gray-800/70'
@@ -675,19 +840,19 @@ function ReviewPageContent() {
             {/* Step 2: Select Category */}
             {step === 'category' && (
               <div className="max-w-4xl mx-auto">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-cyan/10 rounded-full mb-4">
-                    <span className="text-2xl">💼</span>
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-brand-cyan/10 rounded-full mb-3 sm:mb-4">
+                    <span className="text-xl sm:text-2xl">💼</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                     Select Job Category
                   </h2>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     Choose the industry you're applying to
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {jobCategories.map((cat) => (
                     <button
                       key={cat.id}
@@ -709,19 +874,19 @@ function ReviewPageContent() {
             {/* Step 3: Select Field/Role */}
             {step === 'field' && selectedCategory && (
               <div className="max-w-4xl mx-auto">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-cyan/10 rounded-full mb-4">
-                    <span className="text-2xl">{selectedCategory.icon}</span>
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-brand-cyan/10 rounded-full mb-3 sm:mb-4">
+                    <span className="text-xl sm:text-2xl">{selectedCategory.icon}</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                     Select Your Role
                   </h2>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     What position are you targeting in {selectedCategory.name}?
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {selectedCategory.fields.map((f) => (
                     <button
                       key={f.id}
@@ -745,14 +910,14 @@ function ReviewPageContent() {
             {/* Step 4: Select Experience Level */}
             {step === 'experience' && selectedField && (
               <div className="max-w-3xl mx-auto">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-cyan/10 rounded-full mb-4">
-                    <span className="text-2xl">📊</span>
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-brand-cyan/10 rounded-full mb-3 sm:mb-4">
+                    <span className="text-xl sm:text-2xl">📊</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                     Experience Level
                   </h2>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     How many years of experience do you have as a {selectedField.name}?
                   </p>
                 </div>
@@ -1354,7 +1519,7 @@ function ReviewPageContent() {
                 <button
                   onClick={handleNext}
                   disabled={
-                    (step === 'upload' && !file) ||
+                    (step === 'upload' && !file && !resumeText) ||
                     (step === 'category' && !category) ||
                     (step === 'field' && !field) ||
                     (step === 'experience' && !experience)

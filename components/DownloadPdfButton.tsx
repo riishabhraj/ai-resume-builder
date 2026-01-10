@@ -7,6 +7,7 @@ type DownloadPdfButtonProps = {
   resumeId?: string;
   filename?: string;
   label?: string;
+  labelMobile?: string;
   className?: string;
 };
 
@@ -15,6 +16,7 @@ export function DownloadPdfButton({
   resumeId,
   filename = 'resume.pdf',
   label = 'Download PDF',
+  labelMobile,
   className,
 }: DownloadPdfButtonProps) {
   const [loading, setLoading] = useState(false);
@@ -62,7 +64,15 @@ export function DownloadPdfButton({
         'px-4 py-2 rounded-lg bg-brand-purple text-white font-semibold disabled:opacity-50'
       }
     >
-      {loading ? 'Preparing…' : label}
+      {loading ? (
+        'Preparing…'
+      ) : (
+        <>
+          <span className="hidden sm:inline">{label}</span>
+          {labelMobile && <span className="sm:hidden">{labelMobile}</span>}
+          {!labelMobile && <span className="sm:hidden">{label}</span>}
+        </>
+      )}
     </button>
   );
 }

@@ -178,12 +178,12 @@ export default function Dashboard() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3 sm:space-x-6">
               <Link href="/" className="flex items-center space-x-2 group hover:opacity-90 transition-opacity">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl glow-purple">
                   <FileText className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold gradient-text">ResuCraft</span>
+                <span className="text-lg sm:text-xl font-bold gradient-text">ResuCraft</span>
               </Link>
               
               {/* Desktop Navigation */}
@@ -207,15 +207,34 @@ export default function Dashboard() {
                   AI Analysis
                 </Link>
               </nav>
+              
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="md:hidden p-2 rounded-lg text-brand-white hover:bg-brand-navy/50 transition-colors"
+                aria-label="Toggle menu"
+                aria-expanded={showMobileMenu}
+              >
+                {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link
                 href="/create"
                 className="hidden md:flex group px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Resume
+              </Link>
+              
+              {/* Mobile Create Button */}
+              <Link
+                href="/create"
+                className="md:hidden p-2 rounded-lg text-brand-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-lg glow-purple"
+                aria-label="Create Resume"
+              >
+                <Plus className="w-5 h-5" />
               </Link>
 
               {/* User Menu */}
@@ -236,7 +255,7 @@ export default function Dashboard() {
                         <User className="w-4 h-4 text-white" />
                       </div>
                     )}
-                    <span className="hidden md:block text-brand-white text-sm font-medium">
+                    <span className="hidden sm:block text-brand-white text-sm font-medium">
                       {user.user_metadata?.full_name || 
                        user.user_metadata?.name || 
                        user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
@@ -261,8 +280,8 @@ export default function Dashboard() {
                         {/* Upgrade to Pro */}
                         <button
                           onClick={() => {
-                            // TODO: Enable upgrade functionality later
                             setShowUserMenu(false);
+                            router.push('/pricing');
                           }}
                           className="w-full text-left px-4 py-2.5 text-sm text-brand-pink hover:bg-gray-700/50 transition-colors flex items-center space-x-2"
                         >
@@ -285,18 +304,6 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden p-2 rounded-lg bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30"
-              >
-                {showMobileMenu ? (
-                  <X className="w-5 h-5 text-brand-white" />
-                ) : (
-                  <Menu className="w-5 h-5 text-brand-white" />
-                )}
-              </button>
             </div>
           </div>
 
@@ -340,9 +347,9 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-        <div className="mb-8">
-          <h1 className="text-4xl sm:text-5xl font-black text-brand-white mb-2 gradient-text">Dashboard</h1>
-          <p className="text-brand-gray-text text-lg">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-white mb-2 gradient-text">Dashboard</h1>
+          <p className="text-brand-gray-text text-base sm:text-lg">
             Track your resume performance and optimize for ATS systems.
           </p>
         </div>
@@ -372,7 +379,7 @@ export default function Dashboard() {
         ) : (
           <>
             {/* Statistics Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <div className="card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
                 <div className="card-body">
                   <div className="flex items-center justify-between">
@@ -431,7 +438,7 @@ export default function Dashboard() {
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-3 mb-8">
+            <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 mb-6 sm:mb-8">
               {/* Hiring Zone Chart */}
               <div className="lg:col-span-1 card bg-brand-navy/80 backdrop-blur-xl shadow-xl border border-brand-purple/30">
                 <div className="card-body">

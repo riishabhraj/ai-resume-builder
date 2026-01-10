@@ -161,14 +161,14 @@ export default function ResumePage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+        <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <div className="card bg-brand-navy shadow-xl">
               <div className="card-body">
-                <div className="flex justify-between items-center mb-4">
-                  <h1 className="card-title text-3xl text-brand-white">{resume.title}</h1>
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                  <h1 className="card-title text-2xl sm:text-3xl text-brand-white break-words">{resume.title}</h1>
+                  <div className="flex items-center flex-wrap gap-2">
                     {/* Show Review button if resume hasn't been analyzed */}
                     {(resume.ats_score === null || resume.ats_score === undefined) && (
                       <Link 
@@ -190,7 +190,7 @@ export default function ResumePage() {
                     )}
                   </div>
                 </div>
-                <div className="max-h-[calc(100vh - 12rem)] overflow-y-auto custom-scrollbar pr-2">
+                <div className="max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar pr-2">
                   {resume.sections_data && resume.sections_data.length > 0 ? (
                     <ResumeSectionsDisplay sections={resume.sections_data} />
                   ) : resume.plain_text ? (

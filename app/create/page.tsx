@@ -794,16 +794,17 @@ function CreateResumeContent() {
   return (
     <div className="h-screen flex flex-col animated-gradient aurora" data-theme="atsbuilder" suppressHydrationWarning>
       {/* Header */}
-      <header className="glass border-b neon-border px-6 py-4 flex items-center justify-between shadow-2xl backdrop-blur-xl">
-        <div className="flex items-center space-x-6 flex-1 min-w-0">
+      <header className="glass border-b neon-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 shadow-2xl backdrop-blur-xl">
+        <div className="flex items-center space-x-3 sm:space-x-6 flex-1 min-w-0">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-brand-gray-text hover:text-brand-purple-light transition-all duration-300 group flex-shrink-0"
+            className="flex items-center space-x-1 sm:space-x-2 text-brand-gray-text hover:text-brand-purple-light transition-all duration-300 group flex-shrink-0"
           >
-            <span className="text-xl group-hover:transform group-hover:-translate-x-1 transition-transform">←</span>
-            <span className="font-semibold">Back to Home</span>
+            <span className="text-lg sm:text-xl group-hover:transform group-hover:-translate-x-1 transition-transform">←</span>
+            <span className="text-sm sm:text-base font-semibold hidden sm:inline">Back to Home</span>
+            <span className="text-sm sm:text-base font-semibold sm:hidden">Back</span>
           </Link>
-          <div className="flex-1 max-w-md mx-6 min-w-0">
+          <div className="flex-1 max-w-md sm:mx-6 min-w-0">
             <input
               type="text"
               value={title ?? ''}
@@ -819,52 +820,54 @@ function CreateResumeContent() {
                 }
               }}
               placeholder="Resume Name"
-              className="w-full px-4 py-2 rounded-xl bg-brand-navy/50 border border-brand-purple/30 text-brand-white placeholder-brand-gray-text focus:outline-none focus:ring-2 focus:ring-brand-purple/50 focus:border-brand-purple transition-all"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base rounded-xl bg-brand-navy/50 border border-brand-purple/30 text-brand-white placeholder-brand-gray-text focus:outline-none focus:ring-2 focus:ring-brand-purple/50 focus:border-brand-purple transition-all"
             />
           </div>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center flex-wrap gap-2 sm:gap-3">
           <SaveStatusIndicator />
           {user && (
             <>
               <button
                 onClick={handleSave}
                 disabled={!hasUnsavedChanges || saveStatus === 'saving'}
-                className="group px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 flex items-center bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4 mr-2" />
-                Save
+                <Save className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Save</span>
               </button>
               <button
                 onClick={handleSaveAs}
                 disabled={saveStatus === 'saving'}
-                className="group px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center bg-brand-purple/20 hover:bg-brand-purple/30 text-brand-purple border border-brand-purple/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 flex items-center bg-brand-purple/20 hover:bg-brand-purple/30 text-brand-purple border border-brand-purple/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Save as a new resume version"
               >
-                <Copy className="w-4 h-4 mr-2" />
-                Save As
+                <Copy className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Save As</span>
               </button>
             </>
           )}
           <button
             onClick={() => setShowTailorModal(true)}
-            className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-green via-brand-cyan to-brand-green-light hover:scale-105 text-white border-2 border-brand-green/30 glow-green"
+            className="group px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-green via-brand-cyan to-brand-green-light hover:scale-105 text-white border-2 border-brand-green/30 glow-green"
           >
-            <Target className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
-            Tailor to Job
+            <Target className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2 group-hover:rotate-12 transition-transform" />
+            <span className="hidden sm:inline">Tailor to Job</span>
+            <span className="sm:hidden">Tailor</span>
           </button>
           <DownloadPdfButton
             html={exportHtml}
             filename="resume.pdf"
-            className="group px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-brand-pink/30 glow-pink"
+            className="group px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-brand-pink/30 glow-pink"
             label="Download PDF"
+            labelMobile="PDF"
           />
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Sidebar - Sections */}
-        <div className="w-80 glass border-r neon-border flex flex-col custom-scrollbar backdrop-blur-xl">
+        <div className="w-full lg:w-80 glass border-r-0 lg:border-r neon-border flex flex-col custom-scrollbar backdrop-blur-xl max-h-[40vh] lg:max-h-none">
           <div className="p-6 border-b border-brand-purple/20 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple/10 rounded-full blur-2xl"></div>
             <div className="relative">
@@ -944,15 +947,15 @@ function CreateResumeContent() {
           </div>
           
           <div className="w-full max-w-[850px] relative z-10">
-            <div className="mb-8 text-center">
-              <div className="inline-flex items-center space-x-3 px-6 py-3 rounded-2xl glass border neon-border backdrop-blur-xl">
-                <span className="w-3 h-3 bg-gradient-to-r from-brand-green to-brand-cyan rounded-full animate-pulse shadow-lg glow-green"></span>
-                <p className="text-sm font-bold gradient-text-green">Preview Mode • PDF will have exact layout</p>
+            <div className="mb-6 sm:mb-8 text-center">
+              <div className="inline-flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-2 sm:py-3 rounded-2xl glass border neon-border backdrop-blur-xl">
+                <span className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-brand-green to-brand-cyan rounded-full animate-pulse shadow-lg glow-green"></span>
+                <p className="text-xs sm:text-sm font-bold gradient-text-green">Preview Mode • PDF will have exact layout</p>
               </div>
             </div>
             <div
               ref={previewRef}
-              className="bg-white rounded-3xl shadow-2xl glow-purple p-16 border-4 neon-border relative"
+              className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl glow-purple p-6 sm:p-12 lg:p-16 border-4 neon-border relative"
               style={{ 
                 fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif',
                 minHeight: '1100px', // One page minimum

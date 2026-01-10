@@ -16,13 +16,15 @@ type ATSAnalysisResult = AnalysisResult;
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('resume') as File;
+    const file = formData.get('resume') as File | null;
+    const resumeTextParam = formData.get('resumeText') as string | null;
     const category = formData.get('category') as string;
     const field = formData.get('field') as string;
     const experience = formData.get('experience') as string;
     const resumeIdParam = formData.get('resumeId') as string | null;
 
-    if (!file || !category || !field || !experience) {
+    // Check if we have either a file or resumeText
+    if ((!file && !resumeTextParam) || !category || !field || !experience) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -41,21 +43,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract text from PDF
-    console.log('Extracting text from PDF...');
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
     let resumeText = '';
-    try {
-      const pdfData = await pdf(buffer);
-      resumeText = pdfData.text;
-    } catch (pdfError) {
-      console.error('PDF parsing error:', pdfError);
-      return NextResponse.json(
-        { error: 'Failed to parse PDF. Please ensure it\'s a valid PDF file.' },
-        { status: 400 }
-      );
+    
+    // If we have a file, extract text from PDF
+    if (file) {
+      console.log('Extracting text from PDF...');
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      try {
+        const pdfData = await pdf(buffer);
+        resumeText = pdfData.text;
+      } catch (pdfError) {
+        console.error('PDF parsing error:', pdfError);
+        return NextResponse.json(
+          { error: 'Failed to parse PDF. Please ensure it\'s a valid PDF file.' },
+          { status: 400 }
+        );
+      }
+      console.log(`Extracted ${resumeText.length} characters from PDF`);
+    } else if (resumeTextParam) {
+      // Use provided text directly
+      resumeText = resumeTextParam;
+      console.log(`Using provided resume text (${resumeText.length} characters)`);
     }
 
     if (!resumeText || resumeText.trim().length < 100) {
@@ -65,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Extracted ${resumeText.length} characters from PDF`);
+    console.log(`Using ${resumeText.length} characters for analysis`);
 
     // RAG (Retrieval-Augmented Generation) - Optional Enhancement
     let retrievedContext = '';
@@ -263,15 +273,57 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
 
           // If resumeId is provided, update existing resume; otherwise create new one
           if (resumeIdParam) {
+            // First, fetch the existing resume to preserve sections_data and title
+            const { data: existingResume, error: fetchError } = await supabaseClient
+              .from('resume_versions')
+              .select('sections_data, title')
+              .eq('id', resumeIdParam)
+              .eq('user_id', user.id)
+              .single();
+            
+            // Check for fetch errors or missing resume
+            if (fetchError || !existingResume) {
+              console.error('Error fetching existing resume:', fetchError);
+              return NextResponse.json(
+                { error: fetchError?.message || 'Resume not found' },
+                { status: fetchError?.code === 'PGRST116' ? 404 : 500 }
+              );
+            }
+            
             // Update existing resume with analysis results
+            // Preserve sections_data and title if they exist
+            const updateData: any = {
+              plain_text: resumeText,
+              ats_score: Math.round(analysis.overallScore),
+              status: 'compiled', // Mark as analyzed
+              updated_at: new Date().toISOString(), // Update timestamp to reflect re-analysis
+            };
+            
+            // Preserve sections_data if it exists and is valid
+            if (existingResume.sections_data && 
+                (Array.isArray(existingResume.sections_data) || typeof existingResume.sections_data === 'object')) {
+              updateData.sections_data = existingResume.sections_data;
+            }
+            
+            // Preserve existing title if it exists and is not empty
+            // Only use extracted title if no existing title exists or existing title is the default
+            if (existingResume.title && 
+                typeof existingResume.title === 'string' &&
+                existingResume.title.trim() !== '' && 
+                existingResume.title !== 'Uploaded Resume') {
+              // Keep the existing user-set title (don't overwrite with auto-extracted title)
+              updateData.title = existingResume.title;
+            } else if (title && title !== 'Uploaded Resume') {
+              // Use extracted title only if no existing title exists or existing title is default
+              updateData.title = title.length > 100 ? title.substring(0, 100) : title;
+            } else if (existingResume.title && typeof existingResume.title === 'string') {
+              // Fallback: preserve existing title even if it's the default
+              updateData.title = existingResume.title;
+            }
+            
             const { data: updatedResume, error: updateError } = await supabaseClient
               .from('resume_versions')
-              .update({
-                plain_text: resumeText,
-                ats_score: Math.round(analysis.overallScore),
-                status: 'compiled', // Mark as analyzed
-                updated_at: new Date().toISOString(), // Update timestamp to reflect re-analysis
-              })
+              .update(updateData)
               .eq('id', resumeIdParam)
               .eq('user_id', user.id) // Ensure user owns this resume
               .select('id')
@@ -308,9 +360,13 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
           }
 
           // After analysis is complete, store the PDF in S3 (user-specific folder)
-          if (savedResumeId && supabaseAdmin) {
+          // Only upload PDF if a file was provided (not when using resumeText directly)
+          if (savedResumeId && supabaseAdmin && file) {
             try {
               const fileName = `${user.id}/${savedResumeId}.pdf`;
+              const arrayBuffer = await file.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              
               const { error: uploadError } = await supabaseAdmin.storage
                 .from('resumes')
                 .upload(fileName, buffer, {
@@ -343,6 +399,10 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
               console.error('Error storing PDF in S3:', uploadError);
               // Don't fail the request if upload fails, just log it
             }
+          } else if (savedResumeId && !file) {
+            // When using resumeText directly (no PDF file), we don't store PDF in S3
+            // The resume will remain as 'compiled' status but without pdf_url
+            console.log('Analysis completed using resume text - PDF not stored (no file uploaded)');
           }
         }
       }

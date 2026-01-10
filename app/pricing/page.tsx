@@ -229,12 +229,12 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl sm:text-5xl font-black text-brand-white mb-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
+        <div className="text-center mb-12 sm:mb-16">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-white mb-4">
             Upgrade to <span className="gradient-text">Pro</span>
           </h1>
-          <p className="text-lg text-brand-gray-text max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-brand-gray-text max-w-2xl mx-auto">
             Unlock unlimited resumes, AI-powered features, and priority support
           </p>
         </div>
@@ -249,9 +249,9 @@ export default function PricingPage() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
           {/* Free Plan */}
-          <div className="relative p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-purple/30 shadow-xl backdrop-blur-sm">
+          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-purple/30 shadow-xl backdrop-blur-sm">
             <div className="mb-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Rocket className="w-6 h-6 text-brand-purple-light" />
@@ -282,7 +282,7 @@ export default function PricingPage() {
           </div>
 
           {/* Pro Plan - Most Popular */}
-          <div className="relative p-8 rounded-3xl bg-gradient-to-br from-brand-purple/20 to-brand-pink/20 border-2 border-brand-cyan shadow-2xl backdrop-blur-sm transform scale-105 lg:scale-110">
+          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-purple/20 to-brand-pink/20 border-2 border-brand-cyan shadow-2xl backdrop-blur-sm md:transform md:scale-105 lg:scale-110">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-brand-cyan to-brand-purple text-white text-sm font-bold shadow-lg">
               Most Popular
             </div>
@@ -325,7 +325,7 @@ export default function PricingPage() {
           </div>
 
           {/* Pro Plus Plan */}
-          <div className="relative p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-pink/30 shadow-xl backdrop-blur-sm">
+          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-pink/30 shadow-xl backdrop-blur-sm">
             <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold shadow-lg">
               Save 33%
             </div>
