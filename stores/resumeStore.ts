@@ -16,6 +16,7 @@ interface ResumeState {
   importingPdf: boolean;
   enhancingBullet: string | null;
   keywordInput: { [key: string]: string };
+  layoutMode: 'standard' | 'compact';
   
   // Preview/Export
   previewKey: number;
@@ -42,6 +43,7 @@ interface ResumeState {
   setEnhancingBullet: (id: string | null) => void;
   setKeywordInput: (key: string, value: string) => void;
   setPreviewKey: (key: number) => void;
+  setLayoutMode: (mode: 'standard' | 'compact') => void;
   setExportHtml: (html: string) => void;
   setPageBreaks: (breaks: number[]) => void;
   resetResume: () => void;
@@ -87,6 +89,7 @@ const initialState = {
   pageBreaks: [],
   saveStatus: 'idle' as const,
   lastSavedAt: null,
+  layoutMode: 'standard' as const,
 };
 
 export const useResumeStore = create<ResumeState>()(
@@ -166,6 +169,7 @@ export const useResumeStore = create<ResumeState>()(
       setPreviewKey: (key) => set({ previewKey: key }),
       setExportHtml: (html) => set({ exportHtml: html }),
       setPageBreaks: (breaks) => set({ pageBreaks: breaks }),
+      setLayoutMode: (mode) => set({ layoutMode: mode }),
       
       resetResume: () => set({
         ...initialState,

@@ -27,7 +27,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    // Handle both regular JSON requests and sendBeacon (Blob) requests
+    let body: any;
+    const contentType = request.headers.get('content-type');
+    
+    if (contentType?.includes('application/json')) {
+      body = await request.json();
+    } else {
+      // Handle sendBeacon Blob request
+      const blob = await request.blob();
+      const text = await blob.text();
+      body = JSON.parse(text);
+    }
+    
     const { sections, templateId, title, resumeId } = body;
 
     // Validate required fields

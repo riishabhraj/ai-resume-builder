@@ -13,17 +13,48 @@ DECLARE
   v_tier TEXT;
   v_last_reset DATE;
   v_is_new_month BOOLEAN;
+  v_end_date TIMESTAMPTZ;
+  v_status TEXT;
 BEGIN
   -- Lock the row to prevent race conditions
   SELECT 
     subscription_tier,
+    subscription_status,
+    subscription_end_date,
     resumes_created_this_month,
     last_usage_reset_date,
     (last_usage_reset_date < DATE_TRUNC('month', CURRENT_DATE)::DATE) AS is_new_month
-  INTO v_tier, v_counter, v_last_reset, v_is_new_month
+  INTO v_tier, v_status, v_end_date, v_counter, v_last_reset, v_is_new_month
   FROM profiles
   WHERE id = p_user_id
   FOR UPDATE;
+  
+  -- Check if user was found
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User profile not found for user_id: %', p_user_id;
+  END IF;
+  
+  -- Check if subscription has expired and downgrade if needed
+  IF v_tier IN ('pro', 'pro_plus') THEN
+    IF v_end_date IS NOT NULL AND v_end_date < CURRENT_TIMESTAMP THEN
+      -- Subscription expired, downgrade to free
+      v_tier := 'free';
+      UPDATE profiles
+      SET 
+        subscription_tier = 'free',
+        subscription_status = 'inactive',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = p_user_id;
+    ELSIF v_status IS DISTINCT FROM 'active' THEN
+      -- Subscription not active (cancelled, past_due, NULL, etc.), downgrade to free
+      v_tier := 'free';
+      UPDATE profiles
+      SET 
+        subscription_tier = 'free',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = p_user_id;
+    END IF;
+  END IF;
   
   -- If it's a new month, reset counters
   IF v_is_new_month THEN
@@ -63,17 +94,48 @@ DECLARE
   v_tier TEXT;
   v_last_reset DATE;
   v_is_new_month BOOLEAN;
+  v_end_date TIMESTAMPTZ;
+  v_status TEXT;
 BEGIN
   -- Lock the row to prevent race conditions
   SELECT 
     subscription_tier,
+    subscription_status,
+    subscription_end_date,
     reviews_this_month,
     last_usage_reset_date,
     (last_usage_reset_date < DATE_TRUNC('month', CURRENT_DATE)::DATE) AS is_new_month
-  INTO v_tier, v_counter, v_last_reset, v_is_new_month
+  INTO v_tier, v_status, v_end_date, v_counter, v_last_reset, v_is_new_month
   FROM profiles
   WHERE id = p_user_id
   FOR UPDATE;
+  
+  -- Check if user was found
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User profile not found for user_id: %', p_user_id;
+  END IF;
+  
+  -- Check if subscription has expired and downgrade if needed
+  IF v_tier IN ('pro', 'pro_plus') THEN
+    IF v_end_date IS NOT NULL AND v_end_date < CURRENT_TIMESTAMP THEN
+      -- Subscription expired, downgrade to free
+      v_tier := 'free';
+      UPDATE profiles
+      SET 
+        subscription_tier = 'free',
+        subscription_status = 'inactive',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = p_user_id;
+    ELSIF v_status IS DISTINCT FROM 'active' THEN
+      -- Subscription not active (cancelled, past_due, NULL, etc.), downgrade to free
+      v_tier := 'free';
+      UPDATE profiles
+      SET 
+        subscription_tier = 'free',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = p_user_id;
+    END IF;
+  END IF;
   
   -- If it's a new month, reset counters
   IF v_is_new_month THEN
@@ -102,6 +164,6 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Add comments
-COMMENT ON FUNCTION increment_resume_counter IS 'Atomically increments resume counter with row-level locking to prevent race conditions. Returns -1 if limit exceeded.';
-COMMENT ON FUNCTION increment_review_counter IS 'Atomically increments review counter with row-level locking to prevent race conditions. Returns -1 if limit exceeded.';
+COMMENT ON FUNCTION increment_resume_counter IS 'Atomically increments resume counter with row-level locking to prevent race conditions. Automatically downgrades expired subscriptions to free tier. Returns -1 if limit exceeded.';
+COMMENT ON FUNCTION increment_review_counter IS 'Atomically increments review counter with row-level locking to prevent race conditions. Automatically downgrades expired subscriptions to free tier. Returns -1 if limit exceeded.';
 

@@ -129,6 +129,7 @@ function CreateResumeContent() {
   const keywordInput = resumeStore.keywordInput;
   const resumeId = resumeStore.resumeId;
   const title = resumeStore.title;
+  const layoutMode = resumeStore.layoutMode;
   const setSections = resumeStore.setSections;
   const setTitle = resumeStore.setTitle;
   const setSelectedTemplate = resumeStore.setSelectedTemplate;
@@ -141,6 +142,7 @@ function CreateResumeContent() {
   const setPageBreaks = resumeStore.setPageBreaks;
   const setEnhancingBullet = resumeStore.setEnhancingBullet;
   const setKeywordInput = resumeStore.setKeywordInput;
+  const setLayoutMode = resumeStore.setLayoutMode;
   const addSection = resumeStore.addSection;
   const updateSection = resumeStore.updateSection;
   const removeSection = resumeStore.removeSection;
@@ -158,6 +160,24 @@ function CreateResumeContent() {
   const [loadingResume, setLoadingResume] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Refs to store current values for unmount cleanup (avoid stale closures)
+  const sectionsRef = useRef(sections);
+  const titleRef = useRef(title);
+  const selectedTemplateRef = useRef(selectedTemplate);
+  const resumeIdRef = useRef(resumeId);
+  const userRef = useRef(user);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  
+  // Update refs when values change
+  useEffect(() => {
+    sectionsRef.current = sections;
+    titleRef.current = title;
+    selectedTemplateRef.current = selectedTemplate;
+    resumeIdRef.current = resumeId;
+    userRef.current = user;
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [sections, title, selectedTemplate, resumeId, user, hasUnsavedChanges]);
   
   // Track if we've loaded the resume to prevent infinite loops
   const hasLoadedResumeRef = useRef(false);
@@ -282,6 +302,99 @@ function CreateResumeContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeIdFromUrl, initialized, user, isMounted]);
 
+  // Save data before navigating away (browser close/tab close)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only save if user is authenticated and has unsaved changes
+      if (!user || !hasUnsavedChanges || !sections.length) return;
+      
+      // Check if we have meaningful data to save
+      const personalInfo = sections.find(s => s.type === 'personal-info');
+      const hasData = personalInfo?.content?.fullName?.trim() || 
+                     personalInfo?.content?.email?.trim() || 
+                     sections.length > 1 || 
+                     title?.trim();
+      
+      if (!hasData) return;
+      
+      const savePayload = {
+        sections,
+        templateId: selectedTemplate,
+        resumeId: resumeId || undefined,
+        title: title !== undefined ? title : undefined,
+      };
+      
+      // Use fetch with keepalive as primary method
+      // Supabase auth uses cookies (not headers), so cookies are automatically included
+      // keepalive ensures the request completes even if the page is closing
+      fetch('/api/resume/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(savePayload),
+        keepalive: true, // Critical: ensures request completes even if page is closing
+      }).catch(() => {
+        // Fallback: Use sendBeacon if fetch fails (also includes cookies automatically)
+        // sendBeacon is specifically designed for page unload scenarios
+        try {
+          const blob = new Blob([JSON.stringify(savePayload)], { type: 'application/json' });
+          navigator.sendBeacon('/api/resume/save', blob);
+        } catch (beaconError) {
+          // Ignore errors - page may be closing
+        }
+      });
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [user, hasUnsavedChanges, sections, selectedTemplate, title, resumeId]);
+
+  // Save data when component unmounts (user navigates away)
+  // Use refs to avoid stale closures - single effect with empty deps
+  useEffect(() => {
+    return () => {
+      // Read from refs to get current values
+      const currentUser = userRef.current;
+      const currentHasUnsavedChanges = hasUnsavedChangesRef.current;
+      const currentSections = sectionsRef.current;
+      const currentTitle = titleRef.current;
+      const currentSelectedTemplate = selectedTemplateRef.current;
+      const currentResumeId = resumeIdRef.current;
+      
+      // Only save if user is authenticated and has unsaved changes
+      if (!currentUser || !currentHasUnsavedChanges || !currentSections.length) return;
+      
+      // Check if we have meaningful data to save
+      const personalInfo = currentSections.find(s => s.type === 'personal-info');
+      const hasData = personalInfo?.content?.fullName?.trim() || 
+                     personalInfo?.content?.email?.trim() || 
+                     currentSections.length > 1 || 
+                     currentTitle?.trim();
+      
+      if (!hasData) return;
+      
+      // Force immediate save before unmount
+      // Use sendBeacon for reliable delivery
+      try {
+        const savePayload = {
+          sections: currentSections,
+          templateId: currentSelectedTemplate,
+          resumeId: currentResumeId || undefined,
+          title: currentTitle !== undefined ? currentTitle : undefined,
+        };
+        
+        const blob = new Blob([JSON.stringify(savePayload)], { type: 'application/json' });
+        navigator.sendBeacon('/api/resume/save', blob);
+      } catch (error) {
+        console.error('Failed to save on unmount:', error);
+      }
+    };
+  }, []); // Empty deps - only runs on mount/unmount, reads from refs
+
   // Track unsaved changes and auto-save
   useEffect(() => {
     // Only auto-save when on the create page and user is authenticated
@@ -401,9 +514,10 @@ function CreateResumeContent() {
     // Wait for DOM to update and ensure fonts are loaded
     const timeout = setTimeout(() => {
       if (previewRef.current) {
-        // Container has p-16 (64px padding on all sides)
+        // Calculate container padding based on layout mode
+        // Compact: p-8 = 32px, Standard: p-16 = 64px
         const container = previewRef.current;
-        const containerPadding = 64; // p-16 = 64px
+        const containerPadding = layoutMode === 'compact' ? 32 : 64;
         const pageHeight = 1100; // One page height in px (matches PDF: 291mm)
         
         // Get the content element inside the container
@@ -435,7 +549,7 @@ function CreateResumeContent() {
     }, 300); // Increased timeout to ensure DOM and fonts are fully rendered
 
     return () => clearTimeout(timeout);
-  }, [sections, previewKey]);
+  }, [sections, previewKey, layoutMode]);
 
   // Update export HTML when preview changes - MUST be called before conditional return
   useEffect(() => {
@@ -567,6 +681,12 @@ function CreateResumeContent() {
         updatedSections = [...updatedSections, ...otherSections];
 
         setSections(updatedSections);
+        // Mark as having unsaved changes and trigger auto-save
+        setHasUnsavedChanges(true);
+        // Trigger auto-save immediately after import
+        if (initialized && user) {
+          triggerAutoSave();
+        }
         // Success - sections are imported silently
       } else {
         alert('No sections were extracted from the PDF. Please check the file and try again.');
@@ -823,8 +943,37 @@ function CreateResumeContent() {
               className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base rounded-xl bg-brand-navy/50 border border-brand-purple/30 text-brand-white placeholder-brand-gray-text focus:outline-none focus:ring-2 focus:ring-brand-purple/50 focus:border-brand-purple transition-all"
             />
           </div>
+          {/* Layout Mode Selector - Moved here for better visual hierarchy */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => setLayoutMode('standard')}
+              className={`px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                layoutMode === 'standard'
+                  ? 'bg-brand-purple/30 text-brand-purple border border-brand-purple/50'
+                  : 'bg-brand-dark-surface/50 text-brand-gray-text border border-brand-purple/20 hover:border-brand-purple/40'
+              }`}
+              aria-label="Standard layout"
+              title="Standard layout with more spacing"
+            >
+              <span className="hidden sm:inline">Standard</span>
+              <span className="sm:hidden">Std</span>
+            </button>
+            <button
+              onClick={() => setLayoutMode('compact')}
+              className={`px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                layoutMode === 'compact'
+                  ? 'bg-brand-purple/30 text-brand-purple border border-brand-purple/50'
+                  : 'bg-brand-dark-surface/50 text-brand-gray-text border border-brand-purple/20 hover:border-brand-purple/40'
+              }`}
+              aria-label="Compact layout"
+              title="Compact layout with less spacing"
+            >
+              <span className="hidden sm:inline">Compact</span>
+              <span className="sm:hidden">Cmp</span>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center flex-wrap gap-2 sm:gap-3">
+        <div className="flex items-center flex-wrap gap-2 sm:gap-3 ml-2 sm:ml-4">
           <SaveStatusIndicator />
           {user && (
             <>
@@ -955,7 +1104,11 @@ function CreateResumeContent() {
             </div>
             <div
               ref={previewRef}
-              className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl glow-purple p-6 sm:p-12 lg:p-16 border-4 neon-border relative"
+              className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl glow-purple border-4 neon-border relative ${
+                layoutMode === 'compact' 
+                  ? 'p-4 sm:p-6 lg:p-8'  // Reduced padding for compact
+                  : 'p-6 sm:p-12 lg:p-16' // Standard padding
+              }`}
               style={{ 
                 fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif',
                 minHeight: '1100px', // One page minimum
@@ -974,7 +1127,7 @@ function CreateResumeContent() {
                   </span>
                 </div>
               ))}
-              <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} />
+              <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} layoutMode={layoutMode} />
             </div>
           </div>
         </div>
@@ -1168,7 +1321,7 @@ function SaveStatusIndicator() {
   const hasUnsaved = saveStatus === 'idle' && sections.length > 0;
 
   return (
-    <div className="flex items-center gap-2 text-sm text-brand-gray-text px-4 py-2 rounded-lg bg-brand-navy/30 border border-brand-purple/20">
+    <div className="flex items-center gap-2 text-sm text-brand-gray-text px-4 py-2 rounded-lg bg-brand-navy/30 border border-brand-purple/20 ml-2 sm:ml-0">
       {getStatusIcon()}
       <span>{getStatusText()}</span>
       {hasUnsaved && (
@@ -2078,7 +2231,28 @@ function SectionEditor({
 }
 
 // Resume Preview Component - Matches LaTeX template styling
-function ResumePreview({ sections, templateId }: { sections: StructuredResumeSection[]; templateId: string }) {
+function ResumePreview({ 
+  sections, 
+  templateId, 
+  layoutMode = 'standard' 
+}: { 
+  sections: StructuredResumeSection[]; 
+  templateId: string;
+  layoutMode?: 'standard' | 'compact';
+}) {
+  // Define margin values based on layout mode
+  const headerMarginBottom = layoutMode === 'compact' ? '12px' : '20px';
+  const sectionMarginTop = layoutMode === 'compact' ? '12px' : '20px';
+  const sectionMarginBottom = layoutMode === 'compact' ? '12px' : '20px';
+  const sectionHeaderMarginBottom = layoutMode === 'compact' ? '6px' : '10px';
+  const sectionContentMarginTop = layoutMode === 'compact' ? '6px' : '10px';
+  const itemMarginBottom = layoutMode === 'compact' ? '0.8em' : '1.0em'; // Reduced from 1.2em
+  const bulletMarginTop = layoutMode === 'compact' ? '3px' : '4px'; // Reduced from 6px
+  const bulletMarginBottom = layoutMode === 'compact' ? '1px' : '2px'; // Reduced from 3px
+  const categoryMarginBottom = layoutMode === 'compact' ? '3px' : '4px'; // Reduced from 6px
+  const listItemMarginBottom = layoutMode === 'compact' ? '0.4em' : '0.5em'; // Reduced from 0.8em
+  const bulletLineHeight = '1.2'; // Reduced from 1.4 for tighter bullet spacing
+  
   // Extract personal info with memoization to ensure proper updates
   const { displayName, displayContact, socialLinks } = useMemo(() => {
     const personalInfoSection = sections.find((s) => s.type === 'personal-info');
@@ -2172,7 +2346,7 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
         className="resume-header"
         style={{ 
           textAlign: headerAlign as 'left' | 'center', 
-          marginBottom: '20px',
+          marginBottom: headerMarginBottom,
           paddingBottom: '8px',
           marginTop: '0px',
           borderBottom: (displayContact || socialLinks.length > 0) ? '1px solid #e0e0e0' : 'none',
@@ -2233,14 +2407,14 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
             key={section.id} 
             className="resume-section"
             style={{ 
-              marginTop: '20px', 
-              marginBottom: '20px',
+              marginTop: sectionMarginTop, 
+              marginBottom: sectionMarginBottom,
               pageBreakInside: 'avoid',
               breakInside: 'avoid'
             }}
           >
             {/* Section Header - ALL BLACK */}
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: sectionHeaderMarginBottom }}>
               <h2 
                 style={{ 
                   fontSize: isModern ? '14pt' : '13pt', 
@@ -2265,16 +2439,16 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
           </div>
 
             {/* Section Content */}
-            <div style={{ fontSize: '11pt', marginTop: '10px' }}>
+            <div style={{ fontSize: '11pt', marginTop: sectionContentMarginTop }}>
               {section.type === 'professional-summary' || section.type === 'career-objective' ? (
-                <p style={{ color: '#000000', lineHeight: '1.5', margin: '0', padding: '0' }}>
+                <p style={{ color: '#000000', lineHeight: '1.4', margin: '0', padding: '0' }}>
                   {section.content.text || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Click section to add content...</span>}
                 </p>
               ) : section.type === 'experience' || section.type === 'leadership' ? (
                 <div>
                   {section.content.length > 0 ? (
                     section.content.map((exp: any, idx: number) => (
-                      <div key={idx} style={{ marginBottom: '1.2em' }}>
+                      <div key={idx} style={{ marginBottom: itemMarginBottom }}>
                         {/* Company on left, Location on right */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11pt' }}>
@@ -2302,10 +2476,10 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
                         </div>
                         {/* Bullets */}
                         {exp.bullets && exp.bullets.length > 0 && (
-                          <ul style={{ listStyleType: 'disc', marginLeft: '20px', marginTop: '6px', lineHeight: '1.4', padding: '0' }}>
+                          <ul style={{ listStyleType: 'disc', marginLeft: '20px', marginTop: bulletMarginTop, lineHeight: bulletLineHeight, padding: '0' }}>
                             {exp.bullets.map((bullet: any, bidx: number) => {
                               const bulletText = typeof bullet === 'string' ? bullet : bullet.text;
-                              return bulletText && <li key={bidx} style={{ color: '#000000', marginBottom: '3px' }}>{bulletText}</li>;
+                              return bulletText && <li key={bidx} style={{ color: '#000000', marginBottom: bulletMarginBottom, lineHeight: bulletLineHeight }}>{bulletText}</li>;
                             })}
                           </ul>
                         )}
@@ -2319,7 +2493,7 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
                 <div>
                   {section.content.length > 0 ? (
                     section.content.map((edu: any, idx: number) => (
-                      <div key={idx} style={{ marginBottom: '12px' }}>
+                      <div key={idx} style={{ marginBottom: itemMarginBottom }}>
                         {/* University on left, Location on right */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11pt' }}>
@@ -2349,10 +2523,10 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
               ) : section.type === 'skills' ? (
                 <div>
                   {section.content.categories && section.content.categories.length > 0 ? (
-                    <div style={{ color: '#000000', lineHeight: '1.5' }}>
+                    <div style={{ color: '#000000', lineHeight: '1.3' }}>
                       {section.content.categories.map((cat: any, idx: number) => (
                         cat.keywords && cat.keywords.length > 0 && (
-                          <div key={idx} style={{ marginBottom: idx < section.content.categories.length - 1 ? '6px' : '0' }}>
+                          <div key={idx} style={{ marginBottom: idx < section.content.categories.length - 1 ? categoryMarginBottom : '0', lineHeight: '1.3' }}>
                             {cat.name && <span style={{ fontWeight: 'bold' }}>{cat.name}: </span>}
                             {cat.keywords.join(', ')}
                           </div>
@@ -2366,9 +2540,9 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
               ) : section.type === 'projects' ? (
                 <div>
                   {section.content.length > 0 ? (
-                    <ul style={{ listStyleType: 'disc', marginLeft: '20px', padding: '0', lineHeight: '1.4' }}>
+                    <ul style={{ listStyleType: 'disc', marginLeft: '20px', padding: '0', lineHeight: bulletLineHeight }}>
                       {section.content.map((proj: any, idx: number) => (
-                        <li key={idx} style={{ marginBottom: '0.8em', color: '#000000' }}>
+                        <li key={idx} style={{ marginBottom: listItemMarginBottom, color: '#000000', lineHeight: bulletLineHeight }}>
                           {/* Project Name with Link and Technologies on same line */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <div>
@@ -2404,7 +2578,7 @@ function ResumePreview({ sections, templateId }: { sections: StructuredResumeSec
                 <div>
                   {section.content.length > 0 ? (
                     section.content.map((cert: any, idx: number) => (
-                      <div key={idx} style={{ marginBottom: '0.8em' }}>
+                      <div key={idx} style={{ marginBottom: listItemMarginBottom }}>
                         {/* Title on left, Date on right */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div style={{ fontWeight: 'bold', flex: 1 }}>
