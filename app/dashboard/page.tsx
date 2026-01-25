@@ -7,6 +7,7 @@ import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, BarChart3, LogOu
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { useAuthStore } from '@/stores/authStore';
+import { useResumeStore } from '@/stores/resumeStore';
 import HiringZoneChart from '@/components/HiringZoneChart';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import ResumeViewModal from '@/components/ResumeViewModal';
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [viewModalResumeId, setViewModalResumeId] = useState<string | null>(null);
   const { user, signOut, initialized, initialize } = useAuthStore();
+  const { resumeId: currentResumeId, resetResume } = useResumeStore();
 
   // Initialize auth and check waitlist
   useEffect(() => {
@@ -50,9 +52,11 @@ export default function Dashboard() {
 
   async function loadResumes() {
     if (!user) return;
-    
+
     try {
-      const response = await fetch('/api/resume/list');
+      const response = await fetch('/api/resume/list', {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to load resumes');
 
       const data = await response.json();
@@ -107,36 +111,41 @@ export default function Dashboard() {
 
   const handleDelete = async (resumeId: string) => {
     // Prevent duplicate delete requests
-    if (deletingId === resumeId) {
-      return; // Already deleting this resume
-    }
-
-    if (!confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
+    if (deletingId) {
       return;
     }
 
     setDeletingId(resumeId);
+
+    // Store previous state for restoration on error
+    const previousResumes = resumes;
+    const wasCurrentResume = currentResumeId === resumeId;
+
+    // Optimistically remove from UI immediately for better UX
+    setResumes(prev => prev.filter((r) => r.id !== resumeId));
+
     try {
       const response = await fetch(`/api/resume/${resumeId}`, {
         method: 'DELETE',
+        cache: 'no-store',
       });
 
-      if (!response.ok) {
-        // If 404, the resume might have already been deleted (e.g., by another tab/device)
-        // In this case, just remove it from local state
-        if (response.status === 404) {
-          console.log('Resume not found (may have been already deleted), removing from list');
-          setResumes(resumes.filter((r) => r.id !== resumeId));
-          return;
+      if (!response.ok && response.status !== 404) {
+        // If delete failed (and not because it was already deleted), restore state
+        console.error('Failed to delete resume, restoring state');
+        setResumes(previousResumes);
+        await loadResumes();
+      } else {
+        // Success - clear resume store if this was the currently loaded resume
+        if (wasCurrentResume) {
+          resetResume();
         }
-        throw new Error('Failed to delete resume');
       }
-
-      // Remove from local state
-      setResumes(resumes.filter((r) => r.id !== resumeId));
     } catch (error) {
       console.error('Error deleting resume:', error);
-      alert('Failed to delete resume. Please try again.');
+      // Restore state on error
+      setResumes(previousResumes);
+      await loadResumes();
     } finally {
       setDeletingId(null);
     }

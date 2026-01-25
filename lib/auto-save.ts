@@ -131,6 +131,16 @@ export function useAutoSave() {
       // This handles both new resumes and cases where a resume was recreated (e.g., after deletion)
       if (data.resumeId && data.resumeId !== resumeId) {
         setResumeId(data.resumeId);
+
+        // Update URL with new resume ID to prevent data loss on tab switch
+        // This ensures the URL and store stay in sync
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          if (!url.searchParams.get('id')) {
+            url.searchParams.set('id', data.resumeId);
+            window.history.replaceState({}, '', url.toString());
+          }
+        }
       }
 
       // Update title from server response to ensure consistency

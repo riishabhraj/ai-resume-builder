@@ -7,6 +7,7 @@ import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, LogOut, User, Me
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { useAuthStore } from '@/stores/authStore';
+import { useResumeStore } from '@/stores/resumeStore';
 import { ResumesPageSkeleton } from '@/components/skeletons/ResumesPageSkeleton';
 import ResumeViewModal from '@/components/ResumeViewModal';
 
@@ -19,6 +20,7 @@ export default function ResumesPage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [viewModalResumeId, setViewModalResumeId] = useState<string | null>(null);
   const { user, signOut, initialized, initialize } = useAuthStore();
+  const { resumeId: currentResumeId, resetResume } = useResumeStore();
 
   // Initialize auth and check waitlist
   useEffect(() => {
@@ -49,9 +51,11 @@ export default function ResumesPage() {
 
   async function loadResumes() {
     if (!user) return;
-    
+
     try {
-      const response = await fetch('/api/resume/list');
+      const response = await fetch('/api/resume/list', {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to load resumes');
 
       const data = await response.json();
@@ -74,33 +78,36 @@ export default function ResumesPage() {
   };
 
   const handleDelete = async (resumeId: string) => {
-    if (deletingId === resumeId) {
-      return;
-    }
-
-    if (!confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
+    // Prevent duplicate delete requests
+    if (deletingId) {
       return;
     }
 
     setDeletingId(resumeId);
+
+    // Optimistically remove from UI immediately for better UX
+    setResumes(prev => prev.filter((r) => r.id !== resumeId));
+
+    // Clear resume store if this was the currently loaded resume
+    if (currentResumeId === resumeId) {
+      resetResume();
+    }
+
     try {
       const response = await fetch(`/api/resume/${resumeId}`, {
         method: 'DELETE',
+        cache: 'no-store',
       });
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.log('Resume not found (may have been already deleted), removing from list');
-          setResumes(prev => prev.filter((r) => r.id !== resumeId));
-          return;
-        }
-        throw new Error('Failed to delete resume');
+      if (!response.ok && response.status !== 404) {
+        // If delete failed (and not because it was already deleted), reload the list
+        console.error('Failed to delete resume, reloading list');
+        loadResumes();
       }
-
-      setResumes(prev => prev.filter((r) => r.id !== resumeId));
     } catch (error) {
       console.error('Error deleting resume:', error);
-      alert('Failed to delete resume. Please try again.');
+      // Reload list to restore state on error
+      loadResumes();
     } finally {
       setDeletingId(null);
     }

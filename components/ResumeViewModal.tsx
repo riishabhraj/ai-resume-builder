@@ -32,6 +32,7 @@ export default function ResumeViewModal({ isOpen, onClose, resumeId }: ResumeVie
     try {
       const response = await fetch(`/api/resume/${encodeURIComponent(resumeId)}/view`, {
         signal: abortController.signal,
+        cache: 'no-store',
       });
       
       // Check response status before parsing JSON

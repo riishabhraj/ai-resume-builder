@@ -35,7 +35,9 @@ export default function ResumePage() {
 
   async function loadResume() {
     try {
-      const response = await fetch(`/api/resume/${resumeId}`);
+      const response = await fetch(`/api/resume/${resumeId}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to load resume');
 
       const data = await response.json();
@@ -58,7 +60,9 @@ export default function ResumePage() {
   async function loadAnalyses() {
     setLoadingAnalyses(true);
     try {
-      const response = await fetch(`/api/resume/${resumeId}/analyses`);
+      const response = await fetch(`/api/resume/${resumeId}/analyses`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to load analyses');
 
       const data = await response.json();

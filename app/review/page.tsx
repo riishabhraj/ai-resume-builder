@@ -190,7 +190,9 @@ function ReviewPageContent() {
     try {
       // Use encodeURIComponent to safely encode the ID
       const encodedId = encodeURIComponent(id);
-      const response = await fetch(`/api/resume/${encodedId}`);
+      const response = await fetch(`/api/resume/${encodedId}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to load resume');
 
       const data = await response.json();
@@ -214,7 +216,9 @@ function ReviewPageContent() {
         if (resume.ats_score !== null && resume.ats_score !== undefined) {
           // Load analysis from resume_analyses table
           // Reuse the already-encoded ID to avoid double-encoding
-          const analysesResponse = await fetch(`/api/resume/${encodedId}/analyses`);
+          const analysesResponse = await fetch(`/api/resume/${encodedId}/analyses`, {
+            cache: 'no-store',
+          });
           if (analysesResponse.ok) {
             const analysesData = await analysesResponse.json();
             if (analysesData.success && analysesData.analyses && analysesData.analyses.length > 0) {

@@ -9,6 +9,7 @@ type DownloadPdfButtonProps = {
   label?: string;
   labelMobile?: string;
   className?: string;
+  layoutMode?: 'standard' | 'compact';
 };
 
 export function DownloadPdfButton({
@@ -18,6 +19,7 @@ export function DownloadPdfButton({
   label = 'Download PDF',
   labelMobile,
   className,
+  layoutMode = 'standard',
 }: DownloadPdfButtonProps) {
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +33,7 @@ export function DownloadPdfButton({
       const response = await fetch('/api/pdf/resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html, resumeId, filename }),
+        body: JSON.stringify({ html, resumeId, filename, layoutMode }),
       });
 
       if (!response.ok) {

@@ -61,26 +61,33 @@ export async function GET(
     // RLS ensures user can only access their own resumes, but double-check
     if (resume.user_id !== user.id) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Forbidden' },
         { status: 403 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      resume: {
-        id: resume.id,
-        title: resume.title,
-        template_id: resume.template_id,
-        sections_data: resume.sections_data,
-        plain_text: resume.plain_text,
-        latex_source: resume.latex_source,
-        status: resume.status,
-        ats_score: resume.ats_score,
-        created_at: resume.created_at,
-        updated_at: resume.updated_at,
+    return NextResponse.json(
+      {
+        success: true,
+        resume: {
+          id: resume.id,
+          title: resume.title,
+          template_id: resume.template_id,
+          sections_data: resume.sections_data,
+          plain_text: resume.plain_text,
+          latex_source: resume.latex_source,
+          status: resume.status,
+          ats_score: resume.ats_score,
+          created_at: resume.created_at,
+          updated_at: resume.updated_at,
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Load resume error:', error);
     return NextResponse.json(

@@ -182,6 +182,8 @@ function CreateResumeContent() {
   // Track if we've loaded the resume to prevent infinite loops
   const hasLoadedResumeRef = useRef(false);
   const lastResumeIdRef = useRef<string | null>(null);
+  // Track if we've done the initial URL check to prevent reset on tab switch
+  const hasInitializedRef = useRef(false);
   
   // Load resume from URL if provided
   const loadResumeFromApi = useCallback(async (id: string) => {
@@ -207,7 +209,9 @@ function CreateResumeContent() {
 
     try {
       console.log('Fetching resume from API...');
-      const response = await fetch(`/api/resume/${id}`);
+      const response = await fetch(`/api/resume/${id}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to load resume');
       
       const data = await response.json();
@@ -273,30 +277,38 @@ function CreateResumeContent() {
   // Load resume when URL param changes - using refs to prevent infinite loops
   useEffect(() => {
     if (!isMounted || !initialized) return;
-    
+
     // Only load if we have a URL param and haven't loaded it yet
     if (resumeIdFromUrl && user && !loadingResume) {
       // Always load from API if:
       // 1. We haven't loaded this resume yet (different from last loaded)
       // 2. OR the store's resumeId doesn't match the URL (stale data from localStorage)
-      const shouldLoad = resumeIdFromUrl !== lastResumeIdRef.current || 
+      const shouldLoad = resumeIdFromUrl !== lastResumeIdRef.current ||
                         resumeId !== resumeIdFromUrl;
-      
+
       if (shouldLoad) {
         loadResumeFromApi(resumeIdFromUrl);
       }
+      hasInitializedRef.current = true;
     } else if (!resumeIdFromUrl && user) {
-      // No resume ID in URL - this is a new resume
-      // ALWAYS reset the store to ensure no stale data triggers auto-save
-      // This prevents duplicate resumes from being created
-      if (resumeId !== null || hasLoadedResumeRef.current || sections.length > 1 || title) {
-        // Reset if we have any resume data in the store
-        resetResume();
-        setResumeId(null);
-        setTitle(null); // Explicitly clear title to prevent stale data
-        hasLoadedResumeRef.current = false;
-        lastResumeIdRef.current = null;
+      // No resume ID in URL - check if this is a fresh navigation or just a tab switch
+      // Only reset on INITIAL mount when URL has no ID and store has stale data from a different resume
+      if (!hasInitializedRef.current) {
+        hasInitializedRef.current = true;
+
+        // Only reset if the store has a resumeId that doesn't match
+        // (meaning it's stale data from editing a different resume)
+        // Don't reset if user is in the middle of creating a new resume (no resumeId yet)
+        if (resumeId !== null) {
+          // Store has data from a different resume - reset for fresh start
+          resetResume();
+          setResumeId(null);
+          setTitle(null);
+          hasLoadedResumeRef.current = false;
+          lastResumeIdRef.current = null;
+        }
       }
+      // If already initialized, don't reset - user is just switching tabs
     }
     // Only depend on resumeIdFromUrl, initialized, user, isMounted, and resumeId
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -507,10 +519,10 @@ function CreateResumeContent() {
     setPreviewKey(previewKeyRef.current);
   }, [sections, setPreviewKey]);
 
-  // Calculate page breaks for visual indicators
+  // Calculate page breaks for multi-page preview
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     // Wait for DOM to update and ensure fonts are loaded
     const timeout = setTimeout(() => {
       if (previewRef.current) {
@@ -518,38 +530,53 @@ function CreateResumeContent() {
         // Compact: p-8 = 32px, Standard: p-16 = 64px
         const container = previewRef.current;
         const containerPadding = layoutMode === 'compact' ? 32 : 64;
-        const pageHeight = 1100; // One page height in px (matches PDF: 291mm)
-        
+        const pageHeight = 1100; // One page height in px (matches PDF)
+
         // Get the content element inside the container
         const content = container.querySelector('[data-resume-preview]') as HTMLElement;
-        if (!content) return;
-        
-        // Measure content height (this is the actual content without container padding)
+        if (!content) {
+          setPageBreaks([]);
+          return;
+        }
+
+        // Measure content height
         const contentHeight = content.scrollHeight;
         
         // Calculate usable content area per page (page height minus top and bottom padding)
-        const usableContentPerPage = pageHeight - (containerPadding * 2); // 1100 - 128 = 972px
-        
-        // Calculate number of pages based on content height
-        const numberOfPages = Math.ceil((contentHeight + containerPadding * 2) / pageHeight);
-        
-        // Only show page breaks if content exceeds one page
-        if (numberOfPages > 1) {
+        const usableContentPerPage = pageHeight - (containerPadding * 2);
+
+        // Debug logging
+        console.log('Page break calculation:', {
+          contentHeight,
+          usableContentPerPage,
+          pageHeight,
+          padding: containerPadding * 2,
+          layoutMode,
+          willCreatePage2: contentHeight > usableContentPerPage + 50
+        });
+
+        // Only show additional pages if content ACTUALLY exceeds one page
+        // Increased buffer to 50px to be more conservative
+        if (contentHeight > usableContentPerPage + 50) {
+          const numberOfPages = Math.ceil(contentHeight / usableContentPerPage);
           const breaks: number[] = [];
           for (let i = 1; i < numberOfPages; i++) {
-            // Page break at i * pageHeight from container top
-            // This accounts for padding because pageHeight includes padding (matches PDF)
-            breaks.push(i * pageHeight);
+            // Store the content offset for each additional page
+            // This is the amount to scroll up to show content for page i+1
+            breaks.push(i * usableContentPerPage);
           }
+          console.log('Creating page breaks:', breaks.length + 1, 'pages');
           setPageBreaks(breaks);
         } else {
+          // Content fits on one page - no page breaks needed
+          console.log('Content fits on one page - no breaks needed');
           setPageBreaks([]);
         }
       }
-    }, 300); // Increased timeout to ensure DOM and fonts are fully rendered
+    }, 300);
 
     return () => clearTimeout(timeout);
-  }, [sections, previewKey, layoutMode]);
+  }, [sections, previewKey, layoutMode, setPageBreaks]);
 
   // Update export HTML when preview changes - MUST be called before conditional return
   useEffect(() => {
@@ -569,6 +596,7 @@ function CreateResumeContent() {
           cloned.style.border = 'none';
           // Ensure font is explicitly set
           cloned.style.fontFamily = '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif';
+          
           setExportHtml(cloned.outerHTML);
         } else {
           // Fallback: get innerHTML but log a warning
@@ -576,9 +604,9 @@ function CreateResumeContent() {
           setExportHtml(previewRef.current.innerHTML);
         }
       }
-    }, 500); // Longer delay to ensure DOM, fonts, and SVG icons are fully rendered
+    }, 800); // Increased delay to ensure DOM fully renders with new changes
     return () => clearTimeout(timeout);
-  }, [sections, previewKey, setExportHtml]);
+  }, [sections, previewKey, layoutMode, setExportHtml]);
 
   // Show loading until mounted - AFTER all hooks are called
   // This ensures server and client render the same initial state
@@ -1007,6 +1035,7 @@ function CreateResumeContent() {
           <DownloadPdfButton
             html={exportHtml}
             filename="resume.pdf"
+            layoutMode={layoutMode}
             className="group px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-brand-pink/30 glow-pink"
             label="Download PDF"
             labelMobile="PDF"
@@ -1100,34 +1129,63 @@ function CreateResumeContent() {
               <div className="inline-flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-2 sm:py-3 rounded-2xl glass border neon-border backdrop-blur-xl">
                 <span className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-brand-green to-brand-cyan rounded-full animate-pulse shadow-lg glow-green"></span>
                 <p className="text-xs sm:text-sm font-bold gradient-text-green">Preview Mode • PDF will have exact layout</p>
+                {pageBreaks.length > 0 && (
+                  <span className="ml-2 px-2 py-1 bg-brand-purple/20 rounded text-xs text-brand-purple-light">
+                    {pageBreaks.length + 1} pages
+                  </span>
+                )}
               </div>
             </div>
-            <div
-              ref={previewRef}
-              className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl glow-purple border-4 neon-border relative ${
-                layoutMode === 'compact' 
-                  ? 'p-4 sm:p-6 lg:p-8'  // Reduced padding for compact
-                  : 'p-6 sm:p-12 lg:p-16' // Standard padding
-              }`}
-              style={{ 
-                fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif',
-                minHeight: '1100px', // One page minimum
-                maxHeight: 'none' // Allow growth for multiple pages
-              }}
-            >
-              {/* Visual page break indicators */}
-              {pageBreaks.map((breakPoint, index) => (
+
+            {/* Multi-page preview container */}
+            <div className="space-y-8">
+              {/* Page 1 */}
+              <div className="relative">
+                <div className="absolute -top-3 left-4 px-3 py-1 bg-brand-navy/90 rounded-lg text-xs font-semibold text-brand-cyan border border-brand-cyan/30 z-20">
+                  Page 1
+                </div>
                 <div
-                  key={index}
-                  className="absolute left-0 right-0 border-t-2 border-dashed border-red-400/30 pointer-events-none z-10"
-                  style={{ top: `${breakPoint}px` }}
+                  ref={previewRef}
+                  className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-2 border-gray-200 relative overflow-hidden ${
+                    layoutMode === 'compact'
+                      ? 'p-4 sm:p-6 lg:p-8'
+                      : 'p-6 sm:p-12 lg:p-16'
+                  }`}
+                  style={{
+                    fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif',
+                    height: '1150px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                  }}
                 >
-                  <span className="absolute right-4 -top-3 bg-red-400/20 text-red-600 text-xs px-2 py-1 rounded">
+                  <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} layoutMode={layoutMode} />
+                </div>
+              </div>
+
+              {/* Additional pages */}
+              {pageBreaks.map((breakPoint, index) => (
+                <div key={index} className="relative">
+                  <div className="absolute -top-3 left-4 px-3 py-1 bg-brand-navy/90 rounded-lg text-xs font-semibold text-brand-cyan border border-brand-cyan/30 z-20">
                     Page {index + 2}
-                  </span>
+                  </div>
+                  <div
+                    className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-2 border-gray-200 relative overflow-hidden ${
+                      layoutMode === 'compact'
+                        ? 'p-4 sm:p-6 lg:p-8'
+                        : 'p-6 sm:p-12 lg:p-16'
+                    }`}
+                    style={{
+                      fontFamily: '"Tinos", "Liberation Serif", "Times New Roman", Georgia, serif',
+                      height: '1150px',
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
+                    {/* Content offset to show the continuation from previous page */}
+                    <div style={{ marginTop: `-${breakPoint}px` }}>
+                      <ResumePreview key={`${previewKey}-page-${index + 2}`} sections={sections} templateId={selectedTemplate} layoutMode={layoutMode} />
+                    </div>
+                  </div>
                 </div>
               ))}
-              <ResumePreview key={previewKey} sections={sections} templateId={selectedTemplate} layoutMode={layoutMode} />
             </div>
           </div>
         </div>
@@ -2240,18 +2298,18 @@ function ResumePreview({
   templateId: string;
   layoutMode?: 'standard' | 'compact';
 }) {
-  // Define margin values based on layout mode
-  const headerMarginBottom = layoutMode === 'compact' ? '12px' : '20px';
-  const sectionMarginTop = layoutMode === 'compact' ? '12px' : '20px';
-  const sectionMarginBottom = layoutMode === 'compact' ? '12px' : '20px';
-  const sectionHeaderMarginBottom = layoutMode === 'compact' ? '6px' : '10px';
-  const sectionContentMarginTop = layoutMode === 'compact' ? '6px' : '10px';
-  const itemMarginBottom = layoutMode === 'compact' ? '0.8em' : '1.0em'; // Reduced from 1.2em
-  const bulletMarginTop = layoutMode === 'compact' ? '3px' : '4px'; // Reduced from 6px
-  const bulletMarginBottom = layoutMode === 'compact' ? '1px' : '2px'; // Reduced from 3px
-  const categoryMarginBottom = layoutMode === 'compact' ? '3px' : '4px'; // Reduced from 6px
-  const listItemMarginBottom = layoutMode === 'compact' ? '0.4em' : '0.5em'; // Reduced from 0.8em
-  const bulletLineHeight = '1.2'; // Reduced from 1.4 for tighter bullet spacing
+  // Define margin values based on layout mode - optimized for maximum content per page
+  const headerMarginBottom = layoutMode === 'compact' ? '8px' : '12px';
+  const sectionMarginTop = layoutMode === 'compact' ? '8px' : '12px';
+  const sectionMarginBottom = layoutMode === 'compact' ? '8px' : '12px';
+  const sectionHeaderMarginBottom = layoutMode === 'compact' ? '3px' : '5px';
+  const sectionContentMarginTop = layoutMode === 'compact' ? '3px' : '5px';
+  const itemMarginBottom = layoutMode === 'compact' ? '0.6em' : '0.8em';
+  const bulletMarginTop = layoutMode === 'compact' ? '2px' : '3px';
+  const bulletMarginBottom = layoutMode === 'compact' ? '1px' : '1px';
+  const categoryMarginBottom = layoutMode === 'compact' ? '2px' : '3px';
+  const listItemMarginBottom = layoutMode === 'compact' ? '0.3em' : '0.4em';
+  const bulletLineHeight = '1.15'; // Tighter line spacing for bullets
   
   // Extract personal info with memoization to ensure proper updates
   const { displayName, displayContact, socialLinks } = useMemo(() => {
@@ -2342,12 +2400,12 @@ function ResumePreview({
         paddingTop: '0px'
       }}>
       {/* Header */}
-      <div 
+      <div
         className="resume-header"
-        style={{ 
-          textAlign: headerAlign as 'left' | 'center', 
+        style={{
+          textAlign: headerAlign as 'left' | 'center',
           marginBottom: headerMarginBottom,
-          paddingBottom: '8px',
+          paddingBottom: '4px',
           marginTop: '0px',
           borderBottom: (displayContact || socialLinks.length > 0) ? '1px solid #e0e0e0' : 'none',
           pageBreakAfter: 'avoid',
@@ -2415,11 +2473,11 @@ function ResumePreview({
           >
             {/* Section Header - ALL BLACK */}
             <div style={{ marginBottom: sectionHeaderMarginBottom }}>
-              <h2 
-                style={{ 
-                  fontSize: isModern ? '14pt' : '13pt', 
-                  marginBottom: '5px',
-                  margin: '0 0 5px 0',
+              <h2
+                style={{
+                  fontSize: isModern ? '14pt' : '12pt',
+                  marginBottom: '2px',
+                  margin: '0 0 2px 0',
                   padding: '0',
                   color: '#000000',
                   fontWeight: 'bold',
@@ -2429,11 +2487,11 @@ function ResumePreview({
               >
                 {section.title}
               </h2>
-              <div 
-                style={{ 
+              <div
+                style={{
                   borderBottom: `${isModern ? '2pt' : '0.8pt'} solid #000000`,
                   width: '100%',
-                  marginTop: '5px'
+                  marginTop: '1px'
                 }}
               ></div>
           </div>
@@ -2449,29 +2507,29 @@ function ResumePreview({
                   {section.content.length > 0 ? (
                     section.content.map((exp: any, idx: number) => (
                       <div key={idx} style={{ marginBottom: itemMarginBottom }}>
-                        {/* Company on left, Location on right */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11pt' }}>
-                            {exp.company || 'COMPANY NAME'}
-                          </div>
-                          <div style={{ color: '#000000', textAlign: 'right', fontSize: '11pt', fontWeight: 'bold' }}>
-                            {exp.location || ''}
-                          </div>
-                        </div>
                         {/* Role on left, Dates on right */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div>
                             <div style={{ fontWeight: 'bold' }}>
                               {exp.role || 'Role Title'}
                             </div>
                             {exp.additionalRole && (
-                              <div style={{ fontWeight: 'bold', marginTop: '1px' }}>
+                              <div style={{ fontWeight: 'bold', marginTop: '0px' }}>
                                 {exp.additionalRole}
                               </div>
                             )}
                           </div>
-                          <div style={{ color: '#000000', textAlign: 'right', fontSize: '11pt', fontWeight: 'bold' }}>
+                          <div style={{ color: '#000000', textAlign: 'right', fontSize: '11pt' }}>
                             {exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : exp.endDate || exp.startDate || ''}
+                          </div>
+                        </div>
+                        {/* Company on left, Location on right */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0px' }}>
+                          <div style={{ fontStyle: 'italic', fontSize: '11pt' }}>
+                            {exp.company || 'COMPANY NAME'}
+                          </div>
+                          <div style={{ color: '#000000', textAlign: 'right', fontSize: '11pt', fontStyle: 'italic' }}>
+                            {exp.location || ''}
                           </div>
                         </div>
                         {/* Bullets */}
@@ -2504,7 +2562,7 @@ function ResumePreview({
                           </div>
                         </div>
                         {/* Degree details on left, Year on right */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '0px' }}>
                           <div style={{ fontStyle: 'italic' }}>
                             {edu.degree && <span>{edu.degree}</span>}
                             {edu.field && <span>{edu.degree ? ' in ' : ''}{edu.field}</span>}
@@ -2563,7 +2621,7 @@ function ResumePreview({
                           </div>
                           {/* Description */}
                           {proj.description && (
-                            <div style={{ marginTop: '4px', lineHeight: '1.4' }}>
+                            <div style={{ marginTop: '2px', lineHeight: bulletLineHeight }}>
                               {proj.description}
                             </div>
                           )}

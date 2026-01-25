@@ -6,6 +6,7 @@ type RequestBody = {
   html?: string;
   resumeId?: string;
   filename?: string;
+  layoutMode?: 'standard' | 'compact';
 };
 
 const PRINT_STYLES = `
@@ -22,24 +23,28 @@ const PRINT_STYLES = `
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       background: #ffffff;
-      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif !important;
+      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif;
     }
-    /* Apply font globally to all elements - this ensures Liberation Serif everywhere */
+    /* Apply font globally but don't override inline styles */
     *, *::before, *::after {
-      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif !important;
+      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif;
+    }
+    /* Ensure italic font-style is preserved */
+    [style*="font-style: italic"] {
+      font-style: italic;
+    }
+    /* Ensure bold font-weight is preserved */
+    [style*="font-weight: bold"] {
+      font-weight: bold;
     }
     /* Preserve all inline styles from preview */
     [data-resume-preview] {
-      width: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important; /* Padding is handled by body wrapper */
-      background: white !important;
-      box-sizing: border-box !important;
-      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif !important;
-    }
-    /* Ensure all text elements use the font */
-    h1, h2, h3, h4, h5, h6, p, div, span, li, ul, ol {
-      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif !important;
+      width: 100%;
+      margin: 0;
+      padding: 0; /* Padding is handled by body wrapper */
+      background: white;
+      box-sizing: border-box;
+      font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif;
     }
     /* Page break rules for multi-page support */
     .resume-section {
@@ -68,7 +73,12 @@ const PRINT_STYLES = `
   </style>
 `;
 
-function buildHtml(content: string): string {
+function buildHtml(content: string, layoutMode: 'standard' | 'compact' = 'standard'): string {
+  // Match preview padding:
+  // Compact: p-8 = 32px = 8.5mm
+  // Standard: p-16 = 64px = 17mm
+  const padding = layoutMode === 'compact' ? '8.5mm' : '17mm';
+  
   return `<!DOCTYPE html>
   <html lang="en">
     <head>
@@ -81,7 +91,7 @@ function buildHtml(content: string): string {
       ${PRINT_STYLES}
     </head>
     <body style="margin: 0; padding: 0; background: white;">
-      <div style="padding: 17mm; box-sizing: border-box; width: 100%; min-height: 100vh;">
+      <div style="padding: ${padding}; box-sizing: border-box; width: 100%; min-height: 100vh;">
         ${content}
       </div>
     </body>
@@ -91,7 +101,7 @@ function buildHtml(content: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
-    const { html, resumeId, filename = 'resume.pdf' } = body;
+    const { html, resumeId, filename = 'resume.pdf', layoutMode = 'standard' } = body;
 
     if (!html && !resumeId) {
       return NextResponse.json(
@@ -101,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     const resumeHtml = html ?? (await getResumeHtmlById(resumeId!));
-    const fullHtml = buildHtml(resumeHtml);
+    const fullHtml = buildHtml(resumeHtml, layoutMode);
     const pdfBuffer = await generatePdfFromHtml({ html: fullHtml });
 
     // Convert Buffer to Uint8Array for NextResponse compatibility

@@ -47,7 +47,7 @@ export async function GET(
 
     // Ensure user owns this resume
     if (resume.user_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if PDF exists in storage - if not, return error (NO auto-compile)
@@ -67,7 +67,14 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to generate PDF URL' }, { status: 500 });
     }
 
-    return NextResponse.json({ pdfUrl: urlData.signedUrl });
+    return NextResponse.json(
+      { pdfUrl: urlData.signedUrl },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error getting PDF view URL:', error);
     return NextResponse.json(

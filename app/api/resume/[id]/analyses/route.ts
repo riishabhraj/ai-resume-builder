@@ -44,10 +44,17 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      analyses: analyses || [],
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        analyses: analyses || [],
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Load analyses error:', error);
     return NextResponse.json(

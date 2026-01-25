@@ -26,14 +26,8 @@ export default function Home() {
   useEffect(() => {
     if (shouldRedirectToWaitlist()) {
       router.push('/waitlist');
-      return;
     }
-    
-    // Redirect authenticated users to dashboard
-    if (initialized && user) {
-      router.push('/dashboard');
-    }
-  }, [router, initialized, user]);
+  }, [router]);
   
   return (
     <>
@@ -71,10 +65,13 @@ export default function Home() {
                 {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
               
-              <Link href="/sign-in?redirect=/dashboard" className="group px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple">
+              <Link
+                href={user ? "/dashboard" : "/sign-in?redirect=/dashboard"}
+                className="group px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl glow-purple"
+              >
                 <span className="flex items-center">
-                  <span className="hidden sm:inline">Get Started</span>
-                  <span className="sm:hidden">Start</span>
+                  <span className="hidden sm:inline">{user ? "Dashboard" : "Get Started"}</span>
+                  <span className="sm:hidden">{user ? "Dashboard" : "Start"}</span>
                   <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
                 </span>
               </Link>
@@ -134,14 +131,14 @@ export default function Home() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center px-4">
-                <Link
-                  href="/sign-in?redirect=/dashboard"
-                  className="group px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-2xl glow-purple border border-brand-purple/20"
-                >
+              <Link
+                href={user ? "/create" : "/sign-in?redirect=/create"}
+                className="group px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-2xl glow-purple border border-brand-purple/20"
+              >
                   <span className="flex items-center justify-center">
                     <span className="mr-2 sm:mr-3 text-xl sm:text-2xl">🚀</span>
-                    <span className="hidden sm:inline">Start Building Free</span>
-                    <span className="sm:hidden">Start Free</span>
+                    <span className="hidden sm:inline">{user ? "Create New Resume" : "Start Building Free"}</span>
+                    <span className="sm:hidden">{user ? "Create" : "Start Free"}</span>
                     <span className="ml-2 sm:ml-3 group-hover:translate-x-1 transition-transform">→</span>
                   </span>
                 </Link>
@@ -412,10 +409,10 @@ export default function Home() {
                 </div>
                 
                 <Link
-                  href="/sign-in?redirect=/dashboard"
+                  href={user ? "/create" : "/sign-in?redirect=/create"}
                   className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-lg mb-6"
                 >
-                  Get Started Free
+                  {user ? "Create Resume" : "Get Started Free"}
                 </Link>
                 
                 <div className="space-y-3">
@@ -621,9 +618,12 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
-              <Link href="/sign-in?redirect=/dashboard" className="group px-12 py-6 rounded-2xl font-black text-xl text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-110 transition-all duration-300 shadow-2xl glow-pink border border-brand-pink/20">
+              <Link
+                href={user ? "/create" : "/sign-in?redirect=/create"}
+                className="group px-12 py-6 rounded-2xl font-black text-xl text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-110 transition-all duration-300 shadow-2xl glow-pink border border-brand-pink/20"
+              >
                 <span className="flex items-center">
-                  Create Your Resume Now
+                  {user ? "Create New Resume" : "Create Your Resume Now"}
                   <span className="ml-3 text-2xl group-hover:translate-x-2 transition-transform">🚀</span>
                 </span>
               </Link>
