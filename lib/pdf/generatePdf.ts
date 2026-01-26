@@ -5,8 +5,8 @@ type GeneratePdfOptions = {
   html: string;
 };
 
-// Match preview dimensions: 850px × 1100px
-const viewport = { width: 850, height: 1100, deviceScaleFactor: 1 };
+// Match preview dimensions: 850px × 1150px (from create page container)
+const viewport = { width: 850, height: 1150, deviceScaleFactor: 1 };
 
 async function initBrowser(): Promise<{ browser: PuppeteerBrowser; page: PuppeteerPage }> {
   // Check if we're in a serverless environment
@@ -22,7 +22,7 @@ async function initBrowser(): Promise<{ browser: PuppeteerBrowser; page: Puppete
     
     const browser = await puppeteerCore.launch({
       args: chromium.args || ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars', '--disable-web-security'],
-      defaultViewport: { width: 850, height: 1100 },
+      defaultViewport: { width: 850, height: 1150 },
       executablePath: await chromium.executablePath(),
       headless: true,
     });
@@ -53,33 +53,15 @@ export async function generatePdfFromHtml({ html }: GeneratePdfOptions): Promise
     // Additional wait to ensure fonts are fully rendered (using Promise-based delay)
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Measure actual content height to determine if we need multiple pages
-    const contentHeight = await page.evaluate(() => {
-      const content = document.querySelector('[data-resume-preview]');
-      return content ? content.scrollHeight : 0;
-    });
-
-    // Get padding from the wrapper div
-    const wrapperPadding = await page.evaluate(() => {
-      const wrapper = document.querySelector('body > div');
-      if (!wrapper) return 0;
-      const computed = window.getComputedStyle(wrapper);
-      return parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom);
-    });
-
-    // Calculate total height needed (content + padding)
-    const totalHeight = contentHeight + wrapperPadding;
-    
-    // Convert px to mm (1px ≈ 0.2645833mm)
-    const heightInMm = Math.ceil(totalHeight * 0.2645833);
-    
-    // Use dynamic height instead of fixed 291mm
-    // This prevents Puppeteer from creating page breaks
+    // Use fixed page dimensions to match preview (single page)
+    // Preview container is 850px × 1150px with fixed height and overflow hidden
+    // PDF should match this behavior exactly
+    // 1150px × 0.2645833 ≈ 304mm
     const pdf = await page.pdf({
-      width: '225mm',  // Match preview width (850px)
-      height: `${heightInMm}mm`, // Dynamic height based on content
+      width: '225mm',   // 850px in mm
+      height: '304mm',  // 1150px in mm - fixed to match preview single page
       printBackground: true,
-      preferCSSPageSize: false, // Disable CSS page size to use our dynamic height
+      preferCSSPageSize: false, // Use explicit width/height instead of CSS @page
       margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
       scale: 1,
     });

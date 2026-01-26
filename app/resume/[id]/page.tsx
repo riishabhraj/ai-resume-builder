@@ -146,7 +146,7 @@ export default function ResumePage() {
 
   return (
     <div className="min-h-screen bg-brand-black" data-theme="atsbuilder">
-      <header className="bg-brand-black border-b border-brand-navy sticky top-0 z-50">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark-bg/75 border-b border-brand-purple/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">

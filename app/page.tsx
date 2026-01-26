@@ -316,7 +316,7 @@ export default function Home() {
 
         <section className="py-12 sm:py-16 md:py-24 relative">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="relative p-5 sm:p-8 md:p-12 rounded-3xl sm:rounded-4xl glass border-2 neon-border shadow-2xl backdrop-blur-xl overflow-hidden">
+            <div className="relative p-5 sm:p-8 md:p-12 rounded-3xl sm:rounded-4xl glass border-2 border-brand-purple/30 shadow-2xl backdrop-blur-xl overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-brand-pink/10 rounded-full blur-3xl"></div>
               <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-cyan/10 rounded-full blur-3xl"></div>
               

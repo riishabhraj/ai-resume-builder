@@ -197,29 +197,6 @@ html {
     50% { opacity: 0.8; transform: scale(1.1) rotate(5deg); }
   }
   
-  /* Neon border animation */
-  @keyframes neon-pulse {
-    0%, 100% {
-      border-color: rgba(6, 182, 212, 0.5);
-      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
-    }
-    25% {
-      border-color: rgba(168, 85, 247, 0.5);
-      box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
-    }
-    50% {
-      border-color: rgba(236, 72, 153, 0.5);
-      box-shadow: 0 0 10px rgba(236, 72, 153, 0.3);
-    }
-    75% {
-      border-color: rgba(16, 185, 129, 0.5);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-    }
-  }
-  
-  .neon-border {
-    animation: neon-pulse 4s ease infinite;
-  }
   
   /* Infinite scroll animation for companies - Now handled by react-fast-marquee */
   

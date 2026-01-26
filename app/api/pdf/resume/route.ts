@@ -11,13 +11,13 @@ type RequestBody = {
 
 const PRINT_STYLES = `
   <style>
-    @page { 
-      size: 225mm 291mm; /* Match preview: 850px × 1100px */
-      margin: 0; 
+    @page {
+      size: 225mm 304mm; /* Match preview: 850px × 1150px */
+      margin: 0;
     }
     html, body {
       width: 225mm; /* 850px */
-      height: 291mm; /* 1100px */
+      height: 304mm; /* 1150px */
       margin: 0;
       padding: 0;
       -webkit-print-color-adjust: exact;
@@ -45,6 +45,8 @@ const PRINT_STYLES = `
       background: white;
       box-sizing: border-box;
       font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif;
+      max-height: 100%;
+      overflow: hidden; /* Match preview behavior - clip content at page boundary */
     }
     /* Page break rules for multi-page support */
     .resume-section {
@@ -90,8 +92,8 @@ function buildHtml(content: string, layoutMode: 'standard' | 'compact' = 'standa
       <link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
       ${PRINT_STYLES}
     </head>
-    <body style="margin: 0; padding: 0; background: white;">
-      <div style="padding: ${padding}; box-sizing: border-box; width: 100%; min-height: 100vh;">
+    <body style="margin: 0; padding: 0; background: white; overflow: hidden;">
+      <div style="padding: ${padding}; box-sizing: border-box; width: 100%; height: 304mm; overflow: hidden;">
         ${content}
       </div>
     </body>

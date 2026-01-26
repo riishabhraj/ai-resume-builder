@@ -13,6 +13,45 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // Alias for API route compatibility
 type ATSAnalysisResult = AnalysisResult;
 
+// Role-specific keywords and skills that ATS systems look for
+const ROLE_SPECIFIC_KEYWORDS: Record<string, string[]> = {
+  // Software Engineering
+  'backend-developer': ['Node.js', 'Python', 'Java', 'Go', 'REST API', 'GraphQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes', 'microservices', 'AWS', 'database design', 'system design', 'scalability'],
+  'frontend-developer': ['React', 'Vue', 'Angular', 'TypeScript', 'JavaScript', 'CSS', 'Tailwind', 'HTML5', 'responsive design', 'accessibility', 'webpack', 'Next.js', 'Redux', 'UI/UX', 'performance optimization', 'cross-browser'],
+  'fullstack-developer': ['React', 'Node.js', 'TypeScript', 'PostgreSQL', 'MongoDB', 'REST API', 'GraphQL', 'Docker', 'AWS', 'CI/CD', 'full stack', 'end-to-end', 'agile'],
+  'mobile-developer': ['React Native', 'Flutter', 'Swift', 'Kotlin', 'iOS', 'Android', 'mobile UI', 'app store', 'push notifications', 'offline-first', 'mobile performance'],
+  'devops-engineer': ['CI/CD', 'Jenkins', 'GitHub Actions', 'Docker', 'Kubernetes', 'Terraform', 'AWS', 'Azure', 'GCP', 'infrastructure as code', 'monitoring', 'Prometheus', 'Grafana', 'Linux', 'automation'],
+  'sre': ['SRE', 'reliability', 'incident management', 'SLOs', 'SLIs', 'monitoring', 'observability', 'Kubernetes', 'Docker', 'on-call', 'postmortem', 'chaos engineering', 'scalability'],
+  'security-engineer': ['security', 'penetration testing', 'vulnerability assessment', 'OWASP', 'encryption', 'authentication', 'authorization', 'SOC', 'SIEM', 'compliance', 'security audit'],
+  'qa-engineer': ['testing', 'automation', 'Selenium', 'Cypress', 'Jest', 'test cases', 'QA', 'quality assurance', 'regression', 'CI/CD', 'bug tracking', 'test planning'],
+
+  // Data Science & AI
+  'data-scientist': ['Python', 'R', 'machine learning', 'statistics', 'pandas', 'scikit-learn', 'TensorFlow', 'PyTorch', 'data visualization', 'SQL', 'A/B testing', 'hypothesis testing', 'feature engineering'],
+  'ml-engineer': ['machine learning', 'deep learning', 'TensorFlow', 'PyTorch', 'MLOps', 'model deployment', 'Python', 'neural networks', 'NLP', 'computer vision', 'model training', 'feature engineering', 'ML pipelines'],
+  'data-engineer': ['ETL', 'data pipelines', 'Apache Spark', 'Airflow', 'SQL', 'Python', 'data warehouse', 'Snowflake', 'BigQuery', 'Kafka', 'data modeling', 'batch processing', 'streaming'],
+  'data-analyst': ['SQL', 'Excel', 'Tableau', 'Power BI', 'data visualization', 'statistics', 'Python', 'reporting', 'dashboards', 'business intelligence', 'data analysis'],
+  'ai-researcher': ['research', 'deep learning', 'neural networks', 'NLP', 'computer vision', 'publications', 'PyTorch', 'TensorFlow', 'transformers', 'reinforcement learning', 'academic'],
+
+  // Product & Design
+  'product-manager': ['product management', 'roadmap', 'stakeholder management', 'user research', 'agile', 'scrum', 'PRD', 'metrics', 'KPIs', 'prioritization', 'go-to-market', 'product strategy'],
+  'ux-designer': ['UX', 'user experience', 'user research', 'wireframes', 'prototyping', 'Figma', 'usability testing', 'information architecture', 'user flows', 'accessibility'],
+  'ui-designer': ['UI', 'user interface', 'visual design', 'Figma', 'Sketch', 'design systems', 'typography', 'color theory', 'responsive design', 'interaction design'],
+  'product-designer': ['product design', 'UX', 'UI', 'Figma', 'prototyping', 'user research', 'design systems', 'end-to-end design', 'cross-functional'],
+
+  // Marketing & Sales
+  'digital-marketer': ['digital marketing', 'SEO', 'SEM', 'Google Ads', 'Facebook Ads', 'analytics', 'conversion optimization', 'marketing automation', 'email marketing', 'ROI'],
+  'content-marketer': ['content marketing', 'content strategy', 'SEO', 'copywriting', 'blog', 'social media', 'editorial calendar', 'brand voice', 'engagement'],
+  'seo-specialist': ['SEO', 'keyword research', 'Google Analytics', 'Search Console', 'link building', 'on-page SEO', 'technical SEO', 'organic traffic', 'SERP'],
+  'sales-exec': ['sales', 'B2B', 'B2C', 'CRM', 'Salesforce', 'pipeline', 'quota', 'negotiation', 'closing', 'prospecting', 'account management'],
+  'account-manager': ['account management', 'client relations', 'retention', 'upselling', 'CRM', 'customer success', 'relationship building', 'renewals'],
+
+  // Business & Finance
+  'business-analyst': ['business analysis', 'requirements gathering', 'process improvement', 'stakeholder management', 'documentation', 'SQL', 'data analysis', 'user stories', 'agile'],
+  'financial-analyst': ['financial analysis', 'financial modeling', 'Excel', 'forecasting', 'budgeting', 'variance analysis', 'P&L', 'valuation', 'reporting'],
+  'accountant': ['accounting', 'GAAP', 'financial statements', 'tax', 'audit', 'reconciliation', 'QuickBooks', 'Excel', 'accounts payable', 'accounts receivable'],
+  'consultant': ['consulting', 'strategy', 'problem solving', 'client management', 'presentations', 'analysis', 'recommendations', 'project management', 'stakeholder management'],
+};
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -118,14 +157,27 @@ export async function POST(request: NextRequest) {
       console.log('RAG disabled - OpenAI or Supabase not configured. Using Groq AI only.');
     }
 
-    // Create job description context
+    // Get role-specific keywords
+    const roleKeywords = ROLE_SPECIFIC_KEYWORDS[field] || [];
+
+    // Create job description context with role-specific details
     const jobContext = `
 JOB TARGET:
 - Category: ${categoryInfo.name}
 - Role: ${fieldInfo.name}
 - Experience Level: ${experienceInfo.label} (${experienceInfo.years} years)
 
+CRITICAL KEYWORDS FOR THIS ROLE (${fieldInfo.name}):
+The resume MUST contain these skills/keywords to score well for this specific role:
+${roleKeywords.map(k => `- ${k}`).join('\n')}
+
 The candidate is applying for ${fieldInfo.name} positions at the ${experienceInfo.label} level in the ${categoryInfo.name} field.
+
+SCORING IMPACT:
+- If resume contains 80%+ of these keywords: High jobMatch score (20-25/25)
+- If resume contains 50-79% of these keywords: Medium jobMatch score (12-19/25)
+- If resume contains <50% of these keywords: Low jobMatch score (0-11/25)
+- Missing critical keywords should be flagged as HIGH priority suggestions
 `;
 
     // Build comprehensive prompt
@@ -152,7 +204,7 @@ The candidate is applying for ${fieldInfo.name} positions at the ${experienceInf
             content: prompt,
           },
         ],
-        temperature: 0.4, // Balanced for detailed analysis with consistency
+        temperature: 0.5, // Slightly higher for role-specific differentiation while maintaining quality
         max_tokens: 4000, // Increased for more comprehensive analysis
       }),
     });
@@ -440,14 +492,31 @@ function buildAnalysisPrompt(
   jobContext: string,
   retrievedContext: string
 ): string {
-  return `You are analyzing a resume for ATS (Applicant Tracking System) compatibility and competitiveness for a specific role.
+  return `You are analyzing a resume for ATS (Applicant Tracking System) compatibility and competitiveness for a SPECIFIC TARGET ROLE.
+
+**CRITICAL: ROLE-SPECIFIC SCORING REQUIREMENT**
+The same resume MUST receive DIFFERENT scores when evaluated for different roles. A software engineer resume should score differently for:
+- Frontend Developer (focus on React, CSS, UI/UX skills)
+- Backend Developer (focus on databases, APIs, system design)
+- Machine Learning Engineer (focus on ML/AI, Python, TensorFlow, data science)
+- DevOps Engineer (focus on CI/CD, cloud, infrastructure)
+
+Your scoring MUST reflect how well this resume matches the SPECIFIC target role below, NOT just its general quality.
 
 ${retrievedContext ? `RELEVANT ATS BEST PRACTICES AND REQUIREMENTS:\n${retrievedContext}\n\n` : ''}
 
+**TARGET ROLE FOR THIS ANALYSIS:**
 ${jobContext}
 
-RESUME TO ANALYZE:
+**RESUME TO ANALYZE:**
 ${resumeText}
+
+**ROLE-SPECIFIC SCORING INSTRUCTIONS:**
+- If the resume lacks skills specific to the target role, the jobMatch score MUST be LOW (0-10/25)
+- If the resume has some relevant skills but missing key ones for this role, jobMatch should be MEDIUM (11-18/25)
+- Only if the resume is well-tailored for THIS SPECIFIC role should jobMatch be HIGH (19-25/25)
+- The content score should also reflect relevance to the target role, not just general quality
+- Missing role-specific keywords should significantly impact the ATS score
 
 Provide a COMPREHENSIVE, PROFESSIONAL analysis tailored to the target role with the following structure:
 
@@ -556,19 +625,38 @@ Return as JSON with this enhanced structure:
   }
 }
 
-SCORING CRITERIA (5 categories with specific max values, tailored to target role):
-1. ATS & Structure (max: 20 points): ATS compatibility, parseability, format compliance, keyword optimization for the target role, proper section structure
-2. Content Quality (max: 40 points): Quality of content, relevance to target role, completeness, quantifiable achievements, role-specific details, impact demonstration
-3. Writing Quality (max: 10 points): Writing quality, clarity, professional tone, action verbs, grammar, industry-appropriate language, conciseness
-4. Job Optimization (max: 25 points): Alignment with target role requirements, keyword matching from job description, role relevance, experience level appropriateness, tailored content
-5. Application Ready (max: 5 points): Overall readiness for the target role, completeness, professional presentation, all critical sections present, no errors
+SCORING CRITERIA (5 categories with specific max values, MUST BE TAILORED TO TARGET ROLE):
 
-Calculate each category score based on the max value:
-- ATS: 0-20 (e.g., 19/20 = excellent ATS compatibility)
-- Content: 0-40 (e.g., 33/40 = good content quality)
-- Writing: 0-10 (e.g., 8/10 = strong writing)
-- Job Match: 0-25 (e.g., 22/25 = good job alignment)
-- Ready: 0-5 (e.g., 5/5 = fully ready)
+1. ATS & Structure (max: 20 points):
+   - Does the resume contain keywords that ATS systems look for in THIS SPECIFIC ROLE?
+   - A backend engineer resume should have different keywords than a frontend resume
+   - Missing role-specific technical keywords = lower score
+   - Score 15-20: Has most keywords for this role
+   - Score 10-14: Has some keywords but missing important ones for this role
+   - Score 0-9: Missing most keywords relevant to this specific role
+
+2. Content Quality (max: 40 points):
+   - Is the experience RELEVANT to the target role?
+   - A general software engineer resume applying for ML role should score LOWER than one with ML projects
+   - Score 30-40: Experience directly relevant to target role
+   - Score 20-29: Some relevant experience but gaps for this role
+   - Score 0-19: Experience not well-aligned with target role
+
+3. Writing Quality (max: 10 points): Writing quality, clarity, professional tone, action verbs, grammar, industry-appropriate language, conciseness
+
+4. Job Optimization (max: 25 points) - THIS IS THE MOST ROLE-SPECIFIC CATEGORY:
+   - How well does this resume match THIS SPECIFIC role?
+   - Score 20-25: Resume is clearly tailored for this exact role
+   - Score 12-19: Resume has transferable skills but not tailored for this role
+   - Score 0-11: Resume is for a different type of role (e.g., frontend resume for ML job)
+   - CRITICAL: A general resume should NEVER score above 15 for a specialized role
+
+5. Application Ready (max: 5 points): Overall readiness for the target role, completeness, professional presentation
+
+IMPORTANT SCORING DIFFERENTIATION:
+- The SAME resume should get DIFFERENT overall scores for different roles
+- Example: A frontend-heavy resume should score ~75-85 for Frontend Developer, but only ~50-65 for Machine Learning Engineer
+- The jobMatch category (25 points) is where the biggest score difference should appear
 
 IMPORTANT CONSIDERATIONS:
 1. Evaluate the resume specifically for the target role: ${jobContext}
@@ -598,6 +686,15 @@ IMPORTANT:
 - Be specific and cite exact examples from the resume
 - Provide concrete before/after examples for suggestions
 - Use professional, recruiter-friendly language
+
+**CRITICAL REMINDER - ROLE-SPECIFIC SCORING:**
+- This resume is being evaluated for: ${jobContext}
+- Your scores MUST reflect fit for THIS SPECIFIC ROLE
+- The jobMatch category should clearly reflect how well the resume matches the target role
+- If evaluating the same resume for different roles, scores SHOULD BE DIFFERENT
+- A generic software engineer resume should score LOWER for specialized roles (ML, DevOps, Security) than for general roles
+- In the "why" field for each category, explain how well the resume fits THIS SPECIFIC TARGET ROLE
+- Missing role-specific skills/keywords should be called out in suggestions with HIGH priority
 
 Return ONLY valid JSON, no markdown or additional text.`;
 }

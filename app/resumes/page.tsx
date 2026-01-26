@@ -3,20 +3,20 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, LogOut, User, Menu, X, Sparkles, Brain } from 'lucide-react';
+import { FileText, Plus, Loader2, Download, Eye, Edit2, Trash2, Menu, X, Brain } from 'lucide-react';
 import type { ResumeVersion } from '@/lib/types';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 import { useAuthStore } from '@/stores/authStore';
 import { useResumeStore } from '@/stores/resumeStore';
 import { ResumesPageSkeleton } from '@/components/skeletons/ResumesPageSkeleton';
 import ResumeViewModal from '@/components/ResumeViewModal';
+import ProfileDropdown from '@/components/ProfileDropdown';
 
 export default function ResumesPage() {
   const router = useRouter();
   const [resumes, setResumes] = useState<ResumeVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [viewModalResumeId, setViewModalResumeId] = useState<string | null>(null);
   const { user, signOut, initialized, initialize } = useAuthStore();
@@ -122,24 +122,6 @@ export default function ResumesPage() {
     }
   };
 
-  // Close user menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (showUserMenu && !target.closest('.user-menu-container')) {
-        setShowUserMenu(false);
-      }
-    };
-
-    if (showUserMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showUserMenu]);
-
   if (!initialized || loading) {
     return <ResumesPageSkeleton />;
   }
@@ -210,70 +192,7 @@ export default function ResumesPage() {
 
               {/* User Menu */}
               {user && (
-                <div className="relative user-menu-container">
-                  <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-brand-navy/50 hover:bg-brand-navy/70 border border-brand-purple/30 transition-all duration-300"
-                  >
-                    {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
-                      <img
-                        src={user.user_metadata?.avatar_url || user.user_metadata?.picture}
-                        alt="Profile"
-                        className="w-8 h-8 rounded-full object-cover border-2 border-brand-purple/30"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-cyan to-brand-purple flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                    <span className="hidden sm:block text-brand-white text-sm font-medium">
-                      {user.user_metadata?.full_name || 
-                       user.user_metadata?.name || 
-                       user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
-                       'User'}
-                    </span>
-                  </button>
-
-                  {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-56 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-700/50 z-50">
-                      <div className="py-2">
-                        {/* User Info */}
-                        <div className="px-4 py-3 border-b border-gray-700/50">
-                          <p className="font-semibold text-white text-sm mb-1">
-                            {user.user_metadata?.full_name || 
-                             user.user_metadata?.name || 
-                             user.email?.split('@')[0]?.split('.').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 
-                             'User'}
-                          </p>
-                          <p className="text-xs text-gray-400">{user.email}</p>
-                        </div>
-                        
-                        {/* Upgrade to Pro */}
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            router.push('/pricing');
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-brand-pink hover:bg-gray-700/50 transition-colors flex items-center space-x-2"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          <span>Upgrade to Pro</span>
-                        </button>
-                        
-                        <div className="border-t border-gray-700/50 my-1"></div>
-                        
-                        {/* Sign Out */}
-                        <button
-                          onClick={handleSignOut}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors flex items-center space-x-2"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Sign out</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ProfileDropdown onSignOut={handleSignOut} />
               )}
             </div>
           </div>

@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FileText, Check, X, Loader2, AlertCircle, Sparkles, Crown, Rocket, ArrowLeft } from 'lucide-react';
+import { FileText, Check, Loader2, AlertCircle, Sparkles, Crown, Rocket, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { SUBSCRIPTION_PLANS, type SubscriptionPlanId } from '@/lib/razorpay';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { SUBSCRIPTION_PLANS, type SubscriptionPlanId, hasProFeatures, hasProPlusFeatures } from '@/lib/razorpay';
 
 declare global {
   interface Window {
@@ -16,15 +17,26 @@ declare global {
 export default function PricingPage() {
   const router = useRouter();
   const { user, initialized, initialize } = useAuthStore();
+  const { tier, status, fetchSubscription, initialized: subInitialized } = useSubscriptionStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanId | null>(null);
+
+  const isPro = hasProFeatures(tier);
+  const isProPlus = hasProPlusFeatures(tier);
 
   useEffect(() => {
     if (!initialized) {
       initialize();
     }
   }, [initialized, initialize]);
+
+  // Fetch subscription status
+  useEffect(() => {
+    if (user && !subInitialized) {
+      fetchSubscription();
+    }
+  }, [user, subInitialized, fetchSubscription]);
 
   // Redirect to sign-in if not authenticated
   useEffect(() => {
@@ -71,12 +83,10 @@ export default function PricingPage() {
         throw new Error('Payment configuration error: Missing order ID');
       }
 
-      // Load Razorpay script
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      
-      script.onload = () => {
+      // Load Razorpay script (check if already loaded)
+      const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+
+      const initRazorpay = () => {
         // Ensure Razorpay is loaded
         if (!window.Razorpay) {
           console.error('Razorpay SDK failed to load');
@@ -137,6 +147,8 @@ export default function PricingPage() {
 
               if (verifyData.success) {
                 console.log('Payment verified successfully');
+                // Refresh subscription store to get updated status
+                await fetchSubscription();
                 router.push('/dashboard?upgraded=true');
               } else {
                 throw new Error('Payment verification failed');
@@ -179,19 +191,32 @@ export default function PricingPage() {
         }
       };
 
-      script.onerror = () => {
-        console.error('Failed to load Razorpay script');
-        setError('Failed to load payment system. Please check your internet connection.');
-        setLoading(false);
-        setSelectedPlan(null);
-      };
-
-      document.body.appendChild(script);
-
-      script.onerror = () => {
-        setError('Failed to load payment gateway');
-        setLoading(false);
-      };
+      // If Razorpay is already loaded, use it directly
+      if (window.Razorpay) {
+        initRazorpay();
+      } else if (existingScript) {
+        // Script tag exists but Razorpay not yet loaded, wait for it
+        existingScript.addEventListener('load', initRazorpay);
+        existingScript.addEventListener('error', () => {
+          console.error('Failed to load Razorpay script');
+          setError('Failed to load payment system. Please check your internet connection.');
+          setLoading(false);
+          setSelectedPlan(null);
+        });
+      } else {
+        // Load script for the first time
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = initRazorpay;
+        script.onerror = () => {
+          console.error('Failed to load Razorpay script');
+          setError('Failed to load payment system. Please check your internet connection.');
+          setLoading(false);
+          setSelectedPlan(null);
+        };
+        document.body.appendChild(script);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
@@ -251,28 +276,34 @@ export default function PricingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
           {/* Free Plan */}
-          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-purple/30 shadow-xl backdrop-blur-sm">
+          <div className={`relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg shadow-xl backdrop-blur-sm ${!isPro ? 'border-2 border-brand-green/50' : 'border-2 border-brand-purple/30'}`}>
+            {!isPro && (
+              <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-brand-green text-white text-xs font-bold shadow-lg flex items-center space-x-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Current</span>
+              </div>
+            )}
             <div className="mb-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Rocket className="w-6 h-6 text-brand-purple-light" />
                 <h3 className="text-2xl font-black text-brand-white">Free</h3>
               </div>
               <div className="flex items-baseline space-x-2">
-                <span className="text-5xl font-black text-brand-white">₹0</span>
+                <span className="text-5xl font-black text-brand-white">$0</span>
                 <span className="text-brand-gray-text">/month</span>
               </div>
-              <p className="text-brand-gray-text mt-2">Current Plan</p>
+              <p className="text-brand-gray-text mt-2">{!isPro ? 'Your current plan' : 'Basic features'}</p>
             </div>
-            
+
             <button
               disabled
-              className="block w-full py-3 px-6 rounded-xl text-center font-bold text-brand-gray-dark bg-brand-navy/50 cursor-not-allowed mb-6"
+              className={`block w-full py-3 px-6 rounded-xl text-center font-bold cursor-not-allowed mb-6 ${!isPro ? 'text-brand-green bg-brand-green/20 border border-brand-green/50' : 'text-brand-gray-dark bg-brand-navy/50'}`}
             >
-              Current Plan
+              {!isPro ? 'Current Plan' : 'Free Plan'}
             </button>
             
             <div className="space-y-3">
-              {['3 resumes per month', '2 AI reviews per month', '1 professional template', 'Basic ATS score', 'PDF download'].map((feature, idx) => (
+              {['3 resumes per month', '2 AI reviews per month', '1 professional template', 'Basic ATS score', 'PDF download', 'Community support'].map((feature, idx) => (
                 <div key={idx} className="flex items-start space-x-3">
                   <Check className="w-5 h-5 text-brand-green mt-0.5 flex-shrink-0" />
                   <span className="text-brand-gray-text text-sm">{feature}</span>
@@ -282,11 +313,18 @@ export default function PricingPage() {
           </div>
 
           {/* Pro Plan - Most Popular */}
-          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-purple/20 to-brand-pink/20 border-2 border-brand-cyan shadow-2xl backdrop-blur-sm md:transform md:scale-105 lg:scale-110">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-brand-cyan to-brand-purple text-white text-sm font-bold shadow-lg">
-              Most Popular
-            </div>
-            
+          <div className={`relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-purple/20 to-brand-pink/20 shadow-2xl backdrop-blur-sm md:transform md:scale-105 lg:scale-110 ${isPro && !isProPlus ? 'border-2 border-brand-green' : 'border-2 border-brand-cyan'}`}>
+            {isPro && !isProPlus ? (
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-brand-green text-white text-sm font-bold shadow-lg flex items-center space-x-1">
+                <CheckCircle className="w-4 h-4" />
+                <span>Current Plan</span>
+              </div>
+            ) : (
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-brand-cyan to-brand-purple text-white text-sm font-bold shadow-lg">
+                Most Popular
+              </div>
+            )}
+
             <div className="mb-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Sparkles className="w-6 h-6 text-brand-cyan" />
@@ -296,23 +334,39 @@ export default function PricingPage() {
                 <span className="text-5xl font-black gradient-text">$12</span>
                 <span className="text-brand-gray-text">/month</span>
               </div>
-              <p className="text-brand-cyan-light mt-2 font-semibold">For active job seekers</p>
+              <p className="text-brand-cyan-light mt-2 font-semibold">
+                {isPro && !isProPlus ? 'Your current plan' : 'For active job seekers'}
+              </p>
             </div>
-            
-            <button
-              onClick={() => handleUpgrade('pro_monthly')}
-              disabled={loading && selectedPlan === 'pro_monthly'}
-              className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-xl glow-cyan mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading && selectedPlan === 'pro_monthly' ? (
+
+            {isPro && !isProPlus ? (
+              <button
+                disabled
+                className="block w-full py-3 px-6 rounded-xl text-center font-bold text-brand-green bg-brand-green/20 border border-brand-green/50 cursor-not-allowed mb-6"
+              >
                 <span className="flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Processing...
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Current Plan
                 </span>
-              ) : (
-                'Upgrade to Pro'
-              )}
-            </button>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleUpgrade('pro_monthly')}
+                disabled={(loading && selectedPlan === 'pro_monthly') || isProPlus}
+                className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-xl glow-cyan mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading && selectedPlan === 'pro_monthly' ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Processing...
+                  </span>
+                ) : isProPlus ? (
+                  'You have Pro Plus'
+                ) : (
+                  'Upgrade to Pro'
+                )}
+              </button>
+            )}
             
             <div className="space-y-3">
               {SUBSCRIPTION_PLANS.pro_monthly.features.map((feature, idx) => (
@@ -325,11 +379,18 @@ export default function PricingPage() {
           </div>
 
           {/* Pro Plus Plan */}
-          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg border-2 border-brand-pink/30 shadow-xl backdrop-blur-sm">
-            <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold shadow-lg">
-              Save 33%
-            </div>
-            
+          <div className={`relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-brand-dark-card/50 to-brand-dark-bg shadow-xl backdrop-blur-sm ${isProPlus ? 'border-2 border-brand-green' : 'border-2 border-brand-pink/30'}`}>
+            {isProPlus ? (
+              <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-brand-green text-white text-xs font-bold shadow-lg flex items-center space-x-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Current</span>
+              </div>
+            ) : (
+              <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold shadow-lg">
+                Save 33%
+              </div>
+            )}
+
             <div className="mb-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Crown className="w-6 h-6 text-brand-pink" />
@@ -339,23 +400,37 @@ export default function PricingPage() {
                 <span className="text-5xl font-black text-brand-white">$48</span>
                 <span className="text-brand-gray-text">/6 months</span>
               </div>
-              <p className="text-brand-pink-light mt-2 font-semibold">$8/month • Best value</p>
+              <p className="text-brand-pink-light mt-2 font-semibold">
+                {isProPlus ? 'Your current plan' : '$8/month • Best value'}
+              </p>
             </div>
-            
-            <button
-              onClick={() => handleUpgrade('pro_plus_6month')}
-              disabled={loading && selectedPlan === 'pro_plus_6month'}
-              className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-lg mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading && selectedPlan === 'pro_plus_6month' ? (
+
+            {isProPlus ? (
+              <button
+                disabled
+                className="block w-full py-3 px-6 rounded-xl text-center font-bold text-brand-green bg-brand-green/20 border border-brand-green/50 cursor-not-allowed mb-6"
+              >
                 <span className="flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Processing...
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Current Plan
                 </span>
-              ) : (
-                'Get Pro Plus'
-              )}
-            </button>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleUpgrade('pro_plus_6month')}
+                disabled={loading && selectedPlan === 'pro_plus_6month'}
+                className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-lg mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading && selectedPlan === 'pro_plus_6month' ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Processing...
+                  </span>
+                ) : (
+                  'Get Pro Plus'
+                )}
+              </button>
+            )}
             
             <div className="space-y-3">
               {SUBSCRIPTION_PLANS.pro_plus_6month.features.map((feature, idx) => (
