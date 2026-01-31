@@ -7,6 +7,7 @@ import { FileText, Check, Loader2, AlertCircle, Sparkles, Crown, Rocket, ArrowLe
 import { useAuthStore } from '@/stores/authStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { SUBSCRIPTION_PLANS, type SubscriptionPlanId, hasProFeatures, hasProPlusFeatures } from '@/lib/razorpay';
+import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
 
 declare global {
   interface Window {
@@ -30,6 +31,12 @@ export default function PricingPage() {
       initialize();
     }
   }, [initialized, initialize]);
+
+  useEffect(() => {
+    if (shouldRedirectToWaitlist()) {
+      router.push('/waitlist');
+    }
+  }, [router]);
 
   // Fetch subscription status
   useEffect(() => {

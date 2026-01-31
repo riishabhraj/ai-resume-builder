@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { User, LogOut, Sparkles, Crown, Settings, CreditCard, Calendar, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import { User, LogOut, Sparkles, Crown, CreditCard, Calendar, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { hasProFeatures, hasProPlusFeatures, FREE_TIER_LIMITS } from '@/lib/razorpay';
-import SubscriptionModal from './SubscriptionModal';
 
 interface ProfileDropdownProps {
   onSignOut?: () => void;
@@ -18,7 +16,6 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
   const { user } = useAuthStore();
   const {
     tier,
-    status,
     endDate,
     cancelAtPeriodEnd,
     resumesCreated,
@@ -30,7 +27,6 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
   } = useSubscriptionStore();
 
   const [showMenu, setShowMenu] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch subscription on mount
@@ -60,7 +56,6 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
 
   const isPro = hasProFeatures(tier);
   const isProPlus = hasProPlusFeatures(tier);
-  const isActive = status === 'active';
   const isCancelled = cancelAtPeriodEnd;
 
   // Format end date
@@ -91,8 +86,7 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
   if (!user) return null;
 
   return (
-    <>
-      <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setShowMenu(!showMenu)}
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity p-1 rounded-full"
@@ -204,7 +198,7 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
                 <button
                   onClick={() => {
                     setShowMenu(false);
-                    setShowSubscriptionModal(true);
+                    router.push('/subscription');
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors flex items-center justify-between"
                 >
@@ -248,13 +242,6 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Subscription Modal */}
-      <SubscriptionModal
-        isOpen={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
-      />
-    </>
+    </div>
   );
 }
