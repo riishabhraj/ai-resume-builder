@@ -50,11 +50,19 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = getPlanDetails(planId);
-    
+
     // Calculate subscription dates
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + plan.interval);
+    const endDate = new Date(startDate);
+
+    // Add months properly handling edge cases (e.g., Jan 31 + 1 month)
+    const targetMonth = endDate.getMonth() + plan.interval;
+    endDate.setMonth(targetMonth);
+
+    // If the day changed (e.g., Jan 31 -> Mar 3), set to last day of target month
+    if (endDate.getDate() !== startDate.getDate()) {
+      endDate.setDate(0); // Sets to last day of previous month (which is our target month)
+    }
 
     // Update user profile with subscription
     const { error: updateError } = await supabase

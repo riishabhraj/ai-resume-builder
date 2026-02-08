@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         orderId: order.id,
         amount: plan.amount,
         currency: plan.currency,
-        keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        keyId: process.env.RAZORPAY_KEY_ID,
         customerName: profile?.full_name || user.user_metadata?.full_name || 'User',
         customerEmail: profile?.email || user.email || '',
         planId,
