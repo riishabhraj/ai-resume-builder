@@ -44,6 +44,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check if subscription has expired and downgrade if needed
+    const endDate = profile?.subscription_end_date ? new Date(profile.subscription_end_date) : null;
+    const isExpired = endDate && endDate < new Date() && profile?.subscription_tier !== 'free';
+
+    if (isExpired) {
+      // Downgrade to free tier
+      await supabase
+        .from('profiles')
+        .update({
+          subscription_tier: 'free',
+          subscription_status: 'expired',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      // Update local profile data
+      profile.subscription_tier = 'free';
+      profile.subscription_status = 'expired';
+    }
+
     // Get recent transactions
     const { data: transactions } = await supabase
       .from('subscription_transactions')
