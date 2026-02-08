@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendEmail, RESEND_ENABLED, APP_URL } from '@/lib/resend';
+import { resend, RESEND_ENABLED, FROM_EMAIL } from '@/lib/resend';
 
 // Simple admin secret check - set this in your .env.local
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
-// Rate limit: delay between emails (ms) to avoid hitting rate limits
-const EMAIL_DELAY_MS = 100;
-
 export async function POST(request: NextRequest) {
   try {
     // Check if Resend is configured
-    if (!RESEND_ENABLED) {
+    if (!RESEND_ENABLED || !resend) {
       return NextResponse.json(
         { error: 'Email service not configured. Add RESEND_API_KEY to .env.local' },
         { status: 503 }
@@ -77,13 +74,11 @@ export async function POST(request: NextRequest) {
 
     for (const user of waitlistUsers) {
       try {
-        const { html, text } = getLaunchEmailContent();
-
-        await sendEmail({
+        await resend.emails.send({
+          from: FROM_EMAIL,
           to: user.email,
           subject: "ResuCraft is Live! Your wait is over",
-          html,
-          text,
+          html: getLaunchEmailHtml(user.email),
         });
 
         // Mark as notified
@@ -93,11 +88,6 @@ export async function POST(request: NextRequest) {
           .eq('id', user.id);
 
         results.sent++;
-
-        // Small delay to avoid rate limits
-        if (EMAIL_DELAY_MS > 0) {
-          await new Promise(resolve => setTimeout(resolve, EMAIL_DELAY_MS));
-        }
       } catch (emailError) {
         console.error(`Failed to send email to ${user.email}:`, emailError);
         results.failed++;
@@ -119,11 +109,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Email content - returns both HTML and plain text
-function getLaunchEmailContent(): { html: string; text: string } {
-  const signUpUrl = `${APP_URL}/sign-up`;
-
-  const html = `
+// Email HTML template
+function getLaunchEmailHtml(email: string): string {
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -166,7 +154,7 @@ function getLaunchEmailContent(): { html: string; text: string } {
 
       <!-- CTA Button -->
       <div style="text-align: center; margin: 32px 0;">
-        <a href="${signUpUrl}" style="display: inline-block; background: linear-gradient(135deg, #00B4D8 0%, #8B5CF6 100%); color: #ffffff; font-size: 18px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 12px;">
+        <a href="https://resucraft.me/sign-up" style="display: inline-block; background: linear-gradient(135deg, #00B4D8 0%, #8B5CF6 100%); color: #ffffff; font-size: 18px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 12px;">
           Get Started Now
         </a>
       </div>
@@ -182,37 +170,11 @@ function getLaunchEmailContent(): { html: string; text: string } {
         You're receiving this because you signed up for the ResuCraft waitlist.
       </p>
       <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0 0;">
-        © ${new Date().getFullYear()} ResuCraft. All rights reserved.
+        © 2025 ResuCraft. All rights reserved.
       </p>
     </div>
   </div>
 </body>
 </html>
 `;
-
-  // Plain text version for better deliverability
-  const text = `
-ResuCraft is Live! The Wait is Over!
-
-Hi there,
-
-Thank you for joining our waitlist! We're thrilled to announce that ResuCraft is now live and ready for you to use.
-
-As one of our early supporters, you now have access to:
-
-- AI-Powered Resume Builder - Create professional resumes in minutes
-- ATS Score Analysis - Optimize for applicant tracking systems
-- Smart Suggestions - Get AI-powered improvements
-- Multiple Templates - Choose from professional designs
-
-Get Started Now: ${signUpUrl}
-
-Questions? Just reply to this email - we'd love to hear from you!
-
----
-You're receiving this because you signed up for the ResuCraft waitlist.
-© ${new Date().getFullYear()} ResuCraft. All rights reserved.
-`;
-
-  return { html, text };
 }
