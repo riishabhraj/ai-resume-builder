@@ -154,7 +154,7 @@ function getLaunchEmailHtml(_email: string): string {
 
       <!-- CTA Button -->
       <div style="text-align: center; margin: 32px 0;">
-        <a href="https://www.resucraft.me/sign-up" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%); color: #ffffff; font-size: 18px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 12px;">
+        <a href="https://www.resucraft.me/" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%); color: #ffffff; font-size: 18px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 12px;">
           Get Started Now
         </a>
       </div>
