@@ -109,8 +109,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Email HTML template
-function getLaunchEmailHtml(email: string): string {
+// Email HTML template - theme matches app (brand dark-bg, cyan, purple, green)
+function getLaunchEmailHtml(_email: string): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -119,16 +119,16 @@ function getLaunchEmailHtml(email: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ResuCraft is Live!</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0f;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #050209;">
   <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-    <!-- Header -->
+    <!-- Header with logo -->
     <div style="text-align: center; margin-bottom: 40px;">
-      <h1 style="color: #00B4D8; font-size: 32px; margin: 0;">ResuCraft</h1>
-      <p style="color: #9ca3af; margin-top: 8px;">AI-Powered Resume Builder</p>
+      <img src="https://www.resucraft.me/favicon.ico" alt="ResuCraft" width="48" height="48" style="display: block; margin: 0 auto; width: 48px; height: 48px;" />
+      <p style="color: #94a3b8; margin-top: 12px; font-size: 14px;">AI-Powered Resume Builder</p>
     </div>
 
     <!-- Main Content -->
-    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(139, 92, 246, 0.3);">
+    <div style="background: linear-gradient(135deg, #0a0612 0%, #120a1f 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(168, 85, 247, 0.3);">
       <h2 style="color: #ffffff; font-size: 28px; margin: 0 0 16px 0; text-align: center;">
         The Wait is Over!
       </h2>
@@ -138,7 +138,7 @@ function getLaunchEmailHtml(email: string): string {
       </p>
 
       <p style="color: #d1d5db; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-        Thank you for joining our waitlist! We're thrilled to announce that <strong style="color: #00B4D8;">ResuCraft is now live</strong> and ready for you to use.
+        Thank you for joining our waitlist! We're thrilled to announce that <strong style="color: #06b6d4;">ResuCraft is now live</strong> and ready for you to use.
       </p>
 
       <p style="color: #d1d5db; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
@@ -154,22 +154,22 @@ function getLaunchEmailHtml(email: string): string {
 
       <!-- CTA Button -->
       <div style="text-align: center; margin: 32px 0;">
-        <a href="https://resucraft.me/sign-up" style="display: inline-block; background: linear-gradient(135deg, #00B4D8 0%, #8B5CF6 100%); color: #ffffff; font-size: 18px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 12px;">
+        <a href="https://www.resucraft.me/sign-up" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%); color: #ffffff; font-size: 18px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 12px;">
           Get Started Now
         </a>
       </div>
 
-      <p style="color: #9ca3af; font-size: 14px; text-align: center; margin: 24px 0 0 0;">
+      <p style="color: #94a3b8; font-size: 14px; text-align: center; margin: 24px 0 0 0;">
         Questions? Just reply to this email - we'd love to hear from you!
       </p>
     </div>
 
     <!-- Footer -->
     <div style="text-align: center; margin-top: 40px;">
-      <p style="color: #6b7280; font-size: 12px; margin: 0;">
-        You're receiving this because you signed up for the ResuCraft waitlist.
+      <p style="color: #64748b; font-size: 12px; margin: 0;">
+        You're receiving this because you joined the ResuCraft waitlist.
       </p>
-      <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0 0;">
+      <p style="color: #64748b; font-size: 12px; margin: 8px 0 0 0;">
         © 2025 ResuCraft. All rights reserved.
       </p>
     </div>
