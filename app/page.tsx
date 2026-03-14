@@ -617,7 +617,7 @@ export default function Home() {
               AI-powered resume builder.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
+            <div className="flex flex-col gap-3 justify-center items-center">
               <Link
                 href={user ? "/create" : "/sign-in?redirect=/create"}
                 className="group px-12 py-6 rounded-2xl font-black text-xl text-white bg-gradient-to-r from-brand-purple via-brand-pink to-brand-purple-light hover:scale-110 transition-all duration-300 shadow-2xl glow-pink border border-brand-pink/20"
@@ -627,7 +627,7 @@ export default function Home() {
                   <span className="ml-3 text-2xl group-hover:translate-x-2 transition-transform">🚀</span>
                 </span>
               </Link>
-              
+
               <div className="text-brand-gray-text text-sm">
                 <span className="block font-semibold">✨ Start Free • Upgrade Anytime</span>
               </div>
