@@ -155,11 +155,11 @@ export default function Home() {
               <div className="mt-4 sm:mt-6 md:mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-6 text-xs sm:text-sm px-4">
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <span className="text-lg sm:text-xl md:text-2xl">✓</span>
-                  <span className="text-brand-gray-text">100% Free</span>
+                  <span className="text-brand-gray-text">3 Free Resumes/Month</span>
                 </div>
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <span className="text-lg sm:text-xl md:text-2xl">✓</span>
-                  <span className="text-brand-gray-text">No Sign-up Required</span>
+                  <span className="text-brand-gray-text">2 Free AI Reviews</span>
                 </div>
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <span className="text-lg sm:text-xl md:text-2xl">✓</span>
@@ -629,7 +629,7 @@ export default function Home() {
               </Link>
               
               <div className="text-brand-gray-text text-sm">
-                <span className="block font-semibold">✨ 100% Free • No Credit Card</span>
+                <span className="block font-semibold">✨ Start Free • Upgrade Anytime</span>
               </div>
             </div>
           </div>
