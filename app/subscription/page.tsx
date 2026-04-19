@@ -94,13 +94,13 @@ export default function SubscriptionPage() {
     }).format(amount / 100);
   };
 
-  // Get plan details - default to USD for backward compatibility
+  // Get plan details
   const getPlanDetails = () => {
     if (isProPlus) {
-      return SUBSCRIPTION_PLANS.pro_plus_6month_usd;
+      return SUBSCRIPTION_PLANS.pro_plus_6month;
     }
     if (isPro) {
-      return SUBSCRIPTION_PLANS.pro_monthly_usd;
+      return SUBSCRIPTION_PLANS.pro_monthly;
     }
     return null;
   };

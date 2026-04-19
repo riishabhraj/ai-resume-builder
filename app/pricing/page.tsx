@@ -6,10 +6,8 @@ import Link from 'next/link';
 import { FileText, Check, Loader2, AlertCircle, Sparkles, Crown, Rocket, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
-import { useLocaleStore } from '@/stores/localeStore';
-import { SUBSCRIPTION_PLANS, type SubscriptionPlanId, hasProFeatures, hasProPlusFeatures, getPlansByCurrency, getPlanIdForCurrency } from '@/lib/razorpay';
+import { SUBSCRIPTION_PLANS, type SubscriptionPlanId, hasProFeatures, hasProPlusFeatures } from '@/lib/razorpay';
 import { shouldRedirectToWaitlist } from '@/lib/waitlist-check';
-import CurrencySwitcher from '@/components/CurrencySwitcher';
 
 declare global {
   interface Window {
@@ -21,7 +19,6 @@ export default function PricingPage() {
   const router = useRouter();
   const { user, initialized, initialize } = useAuthStore();
   const { tier, status, fetchSubscription, initialized: subInitialized } = useSubscriptionStore();
-  const { currency, detectAndSetCurrency, initialized: localeInitialized } = useLocaleStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanId | null>(null);
@@ -29,23 +26,11 @@ export default function PricingPage() {
   const isPro = hasProFeatures(tier);
   const isProPlus = hasProPlusFeatures(tier);
 
-  // Get plans for current currency
-  const currentPlans = getPlansByCurrency(currency);
-  const proMonthlyPlan = currentPlans.find(p => p.tier === 'pro');
-  const proPlusPlan = currentPlans.find(p => p.tier === 'pro_plus');
-
   useEffect(() => {
     if (!initialized) {
       initialize();
     }
   }, [initialized, initialize]);
-
-  // Initialize locale/currency detection
-  useEffect(() => {
-    if (!localeInitialized) {
-      detectAndSetCurrency();
-    }
-  }, [localeInitialized, detectAndSetCurrency]);
 
   useEffect(() => {
     if (shouldRedirectToWaitlist()) {
@@ -266,14 +251,11 @@ export default function PricingPage() {
               </span>
             </Link>
 
-            <div className="flex items-center space-x-4">
-              <CurrencySwitcher />
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xl font-bold gradient-text">ResuCraft</span>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-cyan via-brand-purple to-brand-pink flex items-center justify-center shadow-xl">
+                <FileText className="w-5 h-5 text-white" />
               </div>
+              <span className="text-xl font-bold gradient-text">ResuCraft</span>
             </div>
           </div>
         </div>
@@ -356,7 +338,7 @@ export default function PricingPage() {
                 <h3 className="text-2xl font-black text-brand-white">Pro</h3>
               </div>
               <div className="flex items-baseline space-x-2">
-                <span className="text-5xl font-black gradient-text">{proMonthlyPlan?.displayPrice || '$12'}</span>
+                <span className="text-5xl font-black gradient-text">$5</span>
                 <span className="text-brand-gray-text">/month</span>
               </div>
               <p className="text-brand-cyan-light mt-2 font-semibold">
@@ -376,11 +358,11 @@ export default function PricingPage() {
               </button>
             ) : (
               <button
-                onClick={() => handleUpgrade(getPlanIdForCurrency('pro', currency))}
-                disabled={(loading && selectedPlan === getPlanIdForCurrency('pro', currency)) || isProPlus}
+                onClick={() => handleUpgrade('pro_monthly')}
+                disabled={(loading && selectedPlan === 'pro_monthly') || isProPlus}
                 className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-cyan via-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-xl glow-cyan mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading && selectedPlan === getPlanIdForCurrency('pro', currency) ? (
+                {loading && selectedPlan === 'pro_monthly' ? (
                   <span className="flex items-center justify-center">
                     <Loader2 className="w-5 h-5 animate-spin mr-2" />
                     Processing...
@@ -394,7 +376,7 @@ export default function PricingPage() {
             )}
 
             <div className="space-y-3">
-              {proMonthlyPlan?.features.map((feature, idx) => (
+              {SUBSCRIPTION_PLANS.pro_monthly.features.map((feature, idx) => (
                 <div key={idx} className="flex items-start space-x-3">
                   <Check className="w-5 h-5 text-brand-cyan mt-0.5 flex-shrink-0" />
                   <span className="text-brand-white text-sm font-semibold">{feature}</span>
@@ -412,7 +394,7 @@ export default function PricingPage() {
               </div>
             ) : (
               <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold shadow-lg">
-                Save 33%
+                Best Value
               </div>
             )}
 
@@ -422,11 +404,11 @@ export default function PricingPage() {
                 <h3 className="text-2xl font-black text-brand-white">Pro Plus</h3>
               </div>
               <div className="flex items-baseline space-x-2">
-                <span className="text-5xl font-black text-brand-white">{proPlusPlan?.displayPrice || '$48'}</span>
+                <span className="text-5xl font-black text-brand-white">$36</span>
                 <span className="text-brand-gray-text">/6 months</span>
               </div>
               <p className="text-brand-pink-light mt-2 font-semibold">
-                {isProPlus ? 'Your current plan' : currency === 'USD' ? '$8/month • Best value' : '₹416/month • Best value'}
+                {isProPlus ? 'Your current plan' : '$6/month • Best value'}
               </p>
             </div>
 
@@ -442,11 +424,11 @@ export default function PricingPage() {
               </button>
             ) : (
               <button
-                onClick={() => handleUpgrade(getPlanIdForCurrency('pro_plus', currency))}
-                disabled={loading && selectedPlan === getPlanIdForCurrency('pro_plus', currency)}
+                onClick={() => handleUpgrade('pro_plus_6month')}
+                disabled={loading && selectedPlan === 'pro_plus_6month'}
                 className="block w-full py-3 px-6 rounded-xl text-center font-bold text-white bg-gradient-to-r from-brand-purple to-brand-pink hover:scale-105 transition-all duration-300 shadow-lg mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading && selectedPlan === getPlanIdForCurrency('pro_plus', currency) ? (
+                {loading && selectedPlan === 'pro_plus_6month' ? (
                   <span className="flex items-center justify-center">
                     <Loader2 className="w-5 h-5 animate-spin mr-2" />
                     Processing...
@@ -458,7 +440,7 @@ export default function PricingPage() {
             )}
 
             <div className="space-y-3">
-              {proPlusPlan?.features.map((feature, idx) => (
+              {SUBSCRIPTION_PLANS.pro_plus_6month.features.map((feature, idx) => (
                 <div key={idx} className="flex items-start space-x-3">
                   <Check className="w-5 h-5 text-brand-pink mt-0.5 flex-shrink-0" />
                   <span className="text-brand-gray-text text-sm">{feature}</span>
