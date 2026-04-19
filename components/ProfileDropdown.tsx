@@ -223,7 +223,7 @@ export default function ProfileDropdown({ onSignOut }: ProfileDropdownProps) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-400 ml-6">
-                    <span>From $8/month</span>
+                    <span>From $5/month</span>
                     <span className="text-brand-cyan">Save 33%</span>
                   </div>
                 </button>

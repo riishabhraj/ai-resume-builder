@@ -463,7 +463,7 @@ export default function Home() {
                     <h3 className="text-xl sm:text-2xl font-black text-brand-white">Pro</h3>
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-3xl sm:text-4xl md:text-5xl font-black gradient-text">$12</span>
+                    <span className="text-3xl sm:text-4xl md:text-5xl font-black gradient-text">$5</span>
                     <span className="text-sm sm:text-base text-brand-gray-text">/month</span>
                   </div>
                   <p className="text-xs sm:text-sm text-brand-cyan-light mt-2 font-semibold">For active job seekers</p>
@@ -528,10 +528,10 @@ export default function Home() {
                     <h3 className="text-xl sm:text-2xl font-black text-brand-white">Pro Plus</h3>
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-white">$48</span>
+                    <span className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-white">$20</span>
                     <span className="text-sm sm:text-base text-brand-gray-text">/6 months</span>
                   </div>
-                  <p className="text-xs sm:text-sm text-brand-pink-light mt-2 font-semibold">$8/month • Best value</p>
+                  <p className="text-xs sm:text-sm text-brand-pink-light mt-2 font-semibold">$3.33/month • Best value</p>
                 </div>
                 
                 <Link
