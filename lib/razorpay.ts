@@ -46,14 +46,14 @@ export const SUBSCRIPTION_PLANS = {
   pro_plus_6month: {
     id: 'pro_plus_6month',
     name: 'Pro Plus (6 Months)',
-    amount: 3600, // $36.00 in cents ($6/month)
+    amount: 2000, // $20.00 in cents ($3.33/month - save 33%)
     currency: 'USD',
     interval: 6,
     period: 'month' as const,
     tier: 'pro_plus' as const,
     features: [
       'Everything in Pro',
-      'Pay for 6 months upfront',
+      'Save 33% vs monthly',
       '1 free human review',
       'Priority processing',
       'Early access features',

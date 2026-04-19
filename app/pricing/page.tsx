@@ -394,7 +394,7 @@ export default function PricingPage() {
               </div>
             ) : (
               <div className="absolute -top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink text-white text-xs font-bold shadow-lg">
-                Best Value
+                Save 33%
               </div>
             )}
 
@@ -404,11 +404,11 @@ export default function PricingPage() {
                 <h3 className="text-2xl font-black text-brand-white">Pro Plus</h3>
               </div>
               <div className="flex items-baseline space-x-2">
-                <span className="text-5xl font-black text-brand-white">$36</span>
+                <span className="text-5xl font-black text-brand-white">$20</span>
                 <span className="text-brand-gray-text">/6 months</span>
               </div>
               <p className="text-brand-pink-light mt-2 font-semibold">
-                {isProPlus ? 'Your current plan' : '$6/month • Best value'}
+                {isProPlus ? 'Your current plan' : '$3.33/month • Save $10'}
               </p>
             </div>
 
