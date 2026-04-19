@@ -119,17 +119,12 @@ export default function Home() {
                 <span className="text-xs sm:text-sm font-semibold text-brand-green-light">AI-Powered Resume Builder</span>
               </div>
               
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-brand-white mb-4 sm:mb-6 leading-tight px-4">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-brand-white mb-8 sm:mb-10 leading-tight px-4">
                 Create <span className="gradient-text">ATS-Friendly</span>
                 <br />
                 <span className="text-brand-white">Resumes In</span> <span className="gradient-text-purple">Minutes</span>
               </h1>
-              
-              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-brand-gray-text max-w-3xl mx-auto mb-8 sm:mb-10 leading-relaxed px-4">
-                Build professional, ATS-optimized resumes tailored to job descriptions
-                using <span className="text-brand-purple-light font-semibold">AI-powered insights</span> and <span className="text-brand-cyan-light font-semibold">expert formatting</span>.
-              </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center px-4">
               <Link
                 href={user ? "/create" : "/sign-in?redirect=/create"}
