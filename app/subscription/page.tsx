@@ -94,13 +94,13 @@ export default function SubscriptionPage() {
     }).format(amount / 100);
   };
 
-  // Get plan details
+  // Get plan details - default to USD for backward compatibility
   const getPlanDetails = () => {
     if (isProPlus) {
-      return SUBSCRIPTION_PLANS.pro_plus_6month;
+      return SUBSCRIPTION_PLANS.pro_plus_6month_usd;
     }
     if (isPro) {
-      return SUBSCRIPTION_PLANS.pro_monthly;
+      return SUBSCRIPTION_PLANS.pro_monthly_usd;
     }
     return null;
   };
@@ -359,7 +359,7 @@ export default function SubscriptionPage() {
                         </div>
                         <div>
                           <p className="font-medium text-white">
-                            {tx.plan_type === 'pro_plus_6month' ? 'Pro Plus' : 'Pro Monthly'}
+                            {tx.plan_type?.includes('pro_plus') ? 'Pro Plus' : 'Pro Monthly'}
                           </p>
                           <p className="text-sm text-gray-500">
                             {new Date(tx.created_at).toLocaleDateString('en-US', {
