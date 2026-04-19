@@ -6,8 +6,11 @@ export async function GET(request: NextRequest) {
   let country = request.headers.get('cf-ipcountry');
 
   // 2. Vercel geo (available on Vercel deployment)
-  if (!country && request.geo?.country) {
-    country = request.geo.country;
+  if (!country) {
+    const geo = (request as any).geo;
+    if (geo?.country) {
+      country = geo.country;
+    }
   }
 
   // 3. Custom header set by middleware
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
     country,
     currency,
     detectedFrom: request.headers.get('cf-ipcountry') ? 'cloudflare' :
-                   request.geo?.country ? 'vercel' :
+                   (request as any).geo?.country ? 'vercel' :
                    'fallback',
   });
 }

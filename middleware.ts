@@ -66,7 +66,9 @@ export async function middleware(request: NextRequest) {
 
   // Add country detection header for locale detection
   // Try Cloudflare header first, then Vercel geo
-  const country = request.headers.get('cf-ipcountry') || request.geo?.country || 'US';
+  const cfCountry = request.headers.get('cf-ipcountry');
+  const geoCountry = (request as any).geo?.country;
+  const country = cfCountry || geoCountry || 'US';
   response.headers.set('x-detected-country', country);
 
   return response;
