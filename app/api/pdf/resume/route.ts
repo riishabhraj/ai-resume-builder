@@ -45,8 +45,9 @@ const PRINT_STYLES = `
       background: white;
       box-sizing: border-box;
       font-family: "Tinos", "Liberation Serif", "Times New Roman", Georgia, serif;
-      max-height: 100%;
-      overflow: hidden; /* Match preview behavior - clip content at page boundary */
+      /* NOTE: Do NOT constrain height/overflow here. Clipping is handled by the
+         <body> at the true page boundary (304mm). Constraining to the content
+         box (page height minus padding) clips the last line even when it fits. */
     }
     /* Page break rules for multi-page support */
     .resume-section {
@@ -92,8 +93,12 @@ function buildHtml(content: string, layoutMode: 'standard' | 'compact' = 'standa
       <link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
       ${PRINT_STYLES}
     </head>
-    <body style="margin: 0; padding: 0; background: white; overflow: hidden;">
-      <div style="padding: ${padding}; box-sizing: border-box; width: 100%; height: 304mm; overflow: hidden;">
+    <!-- Fixed page height + overflow:hidden on the BODY guarantees a single page and
+         clips at the true page boundary (304mm). The inner wrapper only carries the
+         padding and sizes to its content, so the padding acts as breathing room
+         instead of shrinking the clip box and cutting off the last line. -->
+    <body style="margin: 0; padding: 0; background: white; height: 304mm; overflow: hidden;">
+      <div style="padding: ${padding}; box-sizing: border-box; width: 100%;">
         ${content}
       </div>
     </body>
