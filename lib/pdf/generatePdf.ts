@@ -53,6 +53,27 @@ export async function generatePdfFromHtml({ html }: GeneratePdfOptions): Promise
     // Additional wait to ensure fonts are fully rendered (using Promise-based delay)
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    // Fit-to-one-page: the resume is designed as a single page, but Puppeteer's
+    // print rendering measures serif text slightly taller than the browser preview,
+    // which can push the last section onto a 2nd page. If the content overflows the
+    // page, uniformly scale it down just enough to fit. The wrapper is pre-widened by
+    // 1/scale so that after scaling it still fills the full page width (text simply
+    // renders a touch smaller instead of leaving whitespace on the right).
+    await page.evaluate((pageHeightPx: number) => {
+      const wrapper = document.getElementById('pdf-content-wrapper');
+      if (!wrapper) return;
+      // Leave a 1px safety margin so nothing sits exactly on the clip boundary.
+      const target = pageHeightPx - 1;
+      const contentHeight = wrapper.scrollHeight;
+      if (contentHeight > target) {
+        const scale = target / contentHeight;
+        wrapper.style.width = `${100 / scale}%`;
+        wrapper.style.transform = `scale(${scale})`;
+      }
+    }, viewport.height);
+    // Allow the browser to reflow/repaint after the transform is applied.
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Use fixed page dimensions to match preview (single page)
     // Preview container is 850px × 1150px with fixed height and overflow hidden
     // PDF should match this behavior exactly

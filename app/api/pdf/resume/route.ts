@@ -98,7 +98,7 @@ function buildHtml(content: string, layoutMode: 'standard' | 'compact' = 'standa
          padding and sizes to its content, so the padding acts as breathing room
          instead of shrinking the clip box and cutting off the last line. -->
     <body style="margin: 0; padding: 0; background: white; height: 304mm; overflow: hidden;">
-      <div style="padding: ${padding}; box-sizing: border-box; width: 100%;">
+      <div id="pdf-content-wrapper" style="padding: ${padding}; box-sizing: border-box; width: 100%; transform-origin: top left;">
         ${content}
       </div>
     </body>
